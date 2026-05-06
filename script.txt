@@ -25,7 +25,6 @@
     const DEFAULTS = {
         message: '1337',
         doubleMode: false,
-        compact: false,
         speed: 25,
         accent: '#9dff47',
         theme: 'white-green',
@@ -36,7 +35,6 @@
     const state = {
         message: load('message', DEFAULTS.message),
         doubleMode: loadBool('doubleMode', DEFAULTS.doubleMode),
-        compact: loadBool('compact', DEFAULTS.compact),
         speed: loadNumber('speed', DEFAULTS.speed),
         accent: load('accent', DEFAULTS.accent),
         theme: load('theme', DEFAULTS.theme),
@@ -45,6 +43,8 @@
         tab: 'spam'
     };
     if (state.accent === '#7c5cff') state.accent = DEFAULTS.accent;
+    state.speed = clampNumber(state.speed, 1, 50);
+    localStorage.removeItem(KEY + 'compact');
 
     let app;
     let launcher;
@@ -61,6 +61,9 @@
     function loadNumber(name, fallback) {
         const value = Number(localStorage.getItem(KEY + name));
         return Number.isFinite(value) ? value : fallback;
+    }
+    function clampNumber(value, min, max) {
+        return Math.min(Math.max(min, value), max);
     }
     function loadPos(name, fallback) {
         try {
@@ -82,7 +85,6 @@
     function save() {
         localStorage.setItem(KEY + 'message', state.message);
         localStorage.setItem(KEY + 'doubleMode', String(state.doubleMode));
-        localStorage.setItem(KEY + 'compact', String(state.compact));
         localStorage.setItem(KEY + 'speed', String(state.speed));
         localStorage.setItem(KEY + 'accent', state.accent);
         localStorage.setItem(KEY + 'theme', state.theme);
@@ -111,9 +113,8 @@
         document.head.appendChild(h('style', {
             id: 'kuloka1337-style',
             html: `
-#kuloka1337{--accent:${state.accent};--main:${theme()[2]};--second:${theme()[3]};--lime:#b9ff00;--text:#f2f0ff;--muted:#aaa7c3;position:fixed;top:${state.panel.top}px;left:${state.panel.left}px;width:${state.compact ? 420 : 720}px;max-width:calc(100vw - 24px);height:auto;min-height:0;color:var(--text);background:#0b0b12;border:1px solid #222;box-shadow:0 18px 50px rgba(0,0,0,.48);font-family:Tahoma,Verdana,"Segoe UI",Arial,sans-serif;z-index:999999;overflow:hidden;opacity:1;transform:scale(1);transform-origin:var(--origin-x,50%) var(--origin-y,50%);transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .2s ease,visibility .2s ease}
+#kuloka1337{--accent:${state.accent};--main:${theme()[2]};--second:${theme()[3]};--lime:#b9ff00;--text:#f2f0ff;--muted:#aaa7c3;position:fixed;top:${state.panel.top}px;left:${state.panel.left}px;width:620px;max-width:calc(100vw - 24px);height:auto;min-height:0;color:var(--text);background:#0b0b12;border:1px solid #222;box-shadow:0 18px 50px rgba(0,0,0,.48);font-family:Tahoma,Verdana,"Segoe UI",Arial,sans-serif;z-index:999999;overflow:hidden;opacity:1;transform:scale(1);transform-origin:var(--origin-x,50%) var(--origin-y,50%);transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .2s ease,visibility .2s ease}
 #kuloka1337.kuloka-closed{opacity:0;visibility:hidden;pointer-events:none;transform:scale(.06)}
-#kuloka1337.kuloka-compact{width:420px;min-height:0}
 #kuloka1337 *{box-sizing:border-box}
 #kuloka-launcher{position:fixed;top:${state.launcher.top}px;left:${state.launcher.left}px;width:52px;height:52px;display:grid;place-items:center;background:#090b10;border:0;border-radius:13px;box-shadow:0 0 16px rgba(108,216,255,.28),0 10px 28px rgba(0,0,0,.45);font:900 20px Tahoma,Verdana,"Segoe UI",Arial,sans-serif;cursor:pointer;z-index:999998;user-select:none;touch-action:none;padding:2px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease}
 #kuloka-launcher:hover{box-shadow:0 0 28px rgba(157,255,71,.32),0 12px 32px rgba(0,0,0,.45);transform:translateY(-1px)}
@@ -124,41 +125,43 @@
 .kuloka-three{color:var(--lime)}
 @keyframes kuloka-spin{to{transform:rotate(360deg)}}
 .kuloka-top{height:10px;padding:0;border-bottom:1px solid #222;background:linear-gradient(90deg,var(--second),var(--main));cursor:move;user-select:none}
-.kuloka-body{display:grid;grid-template-columns:80px 1fr;min-height:0;background:radial-gradient(circle at 1px 1px,rgba(255,255,255,.06) 1px,transparent 1px),#080909;background-size:4px 4px}
-.kuloka-body>*{min-width:0}.kuloka-compact .kuloka-body{grid-template-columns:72px minmax(0,1fr);min-height:0}
-.kuloka-nav{display:flex;flex-direction:column;align-items:center;gap:22px;padding:28px 8px;background:linear-gradient(90deg,rgba(255,255,255,.035),transparent 42%),#090a0b;border-right:1px solid #222}
-.kuloka-compact .kuloka-nav{padding:10px 0}
-.kuloka-tab{width:56px;height:56px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:rgba(255,255,255,.34);padding:0;cursor:pointer;transition:color .18s ease,filter .18s ease}
-.kuloka-tab svg{width:34px;height:34px;stroke:currentColor;fill:none;stroke-width:1.55}.kuloka-tab.active{color:var(--main);filter:drop-shadow(0 0 8px rgba(157,255,71,.55))}
-.kuloka-content{padding:16px 22px 24px;opacity:1;transform:translateY(0);transition:opacity .18s ease,transform .18s ease}.kuloka-content.switching{opacity:0;transform:translateY(8px)}
+.kuloka-body{display:grid;grid-template-columns:68px 1fr;min-height:0;background:radial-gradient(circle at 1px 1px,rgba(255,255,255,.06) 1px,transparent 1px),#080909;background-size:4px 4px}
+.kuloka-body>*{min-width:0}
+.kuloka-nav{display:flex;flex-direction:column;align-items:center;gap:16px;padding:22px 6px;background:linear-gradient(90deg,rgba(255,255,255,.035),transparent 42%),#090a0b;border-right:1px solid #222}
+.kuloka-tab{width:48px;height:48px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:rgba(255,255,255,.34);padding:0;cursor:pointer;transition:color .18s ease,filter .18s ease}
+.kuloka-tab svg{width:30px;height:30px;stroke:currentColor;fill:none;stroke-width:1.55}.kuloka-tab.active{color:var(--main);filter:drop-shadow(0 0 8px rgba(157,255,71,.55))}
+.kuloka-content{padding:14px 16px 18px;opacity:1;transform:translateY(0);transition:opacity .18s ease,transform .18s ease}.kuloka-content.switching{opacity:0;transform:translateY(8px)}
 .kuloka-title{color:rgba(255,255,255,.66);font-size:12px;text-transform:uppercase;font-weight:800;margin-bottom:10px}
-.kuloka-workspace{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}.kuloka-panel{min-height:0;padding:12px;border:1px solid #242424;background:rgba(11,12,12,.78)}
-.kuloka-row{min-height:34px;display:grid;grid-template-columns:170px 1fr;align-items:center;gap:12px;margin-bottom:5px;padding:4px 8px}.kuloka-label{color:#d8d5ec;font-size:14px;font-weight:700}
+.kuloka-workspace{display:grid;grid-template-columns:minmax(0,1fr) 126px;gap:12px;align-items:start}.kuloka-panel{min-width:0;min-height:0;padding:10px;border:1px solid #242424;background:rgba(11,12,12,.78)}
+.kuloka-row{min-height:32px;display:grid;grid-template-columns:96px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:4px;padding:3px 6px}.kuloka-label{color:#d8d5ec;font-size:13px;font-weight:700}
 .kuloka-input{width:100%;min-height:34px;color:var(--text);background:#202020;border:1px solid #252525;border-radius:0;padding:0 10px;outline:none;font:inherit}.kuloka-input:focus{border-color:var(--accent)}
-.kuloka-actions{display:flex;gap:10px;justify-content:flex-end}.kuloka-button{min-height:34px;border:1px solid #292929;background:#202020;color:#fff;padding:0 14px;font:inherit;font-weight:800;cursor:pointer}.kuloka-button.primary{background:var(--main);border-color:var(--main);color:#111;text-shadow:none}
+.kuloka-actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:nowrap}.kuloka-button{min-height:34px;border:1px solid #292929;background:#202020;color:#fff;padding:0 14px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}.kuloka-button.primary{background:var(--main);border-color:var(--main);color:#111;text-shadow:none}
 .kuloka-switch{justify-self:end;width:11px;height:11px;border:1px solid #333;background:#202020;padding:0;cursor:pointer}.kuloka-switch.on{background:var(--main);border-color:var(--main)}.kuloka-switch:before{content:none}
 .kuloka-meter{display:grid;grid-template-columns:1fr 42px;align-items:center;gap:10px}.kuloka-range{--fill:50%;height:8px;appearance:none;background:linear-gradient(90deg,var(--main) var(--fill),#333 var(--fill));border:1px solid #1d1d1d;outline:none}.kuloka-range::-webkit-slider-thumb{appearance:none;width:0;height:0}.kuloka-range::-moz-range-thumb{width:0;height:0;border:0}.kuloka-meter-value{color:#fff;font-size:12px;font-weight:800;text-align:center}
 .kuloka-rgb-panel{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:12px;padding:6px 8px;border:1px solid #242424;background:linear-gradient(90deg,rgba(54,213,255,.1),rgba(255,101,183,.08),rgba(157,255,71,.08)),rgba(11,12,12,.82)}
 .kuloka-rgb-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kuloka-swatch{width:22px;height:22px;border:1px solid rgba(255,255,255,.22);background:var(--swatch);cursor:pointer}.kuloka-color{width:34px;min-height:28px;padding:0;border:1px solid #333;background:#111;cursor:pointer}
-.kuloka-theme-grid{display:grid;grid-template-columns:1fr;gap:8px}.kuloka-theme{display:grid;grid-template-columns:1fr 52px;align-items:center;gap:10px;min-height:28px;border:1px solid #242424;background:#101111;color:#d8d5ec;padding:4px 8px;font:inherit;font-size:12px;font-weight:800;text-align:left;cursor:pointer}.kuloka-theme.active{color:#fff;border-color:var(--main);box-shadow:inset 0 0 0 1px rgba(157,255,71,.45)}.kuloka-theme-colors{display:flex;justify-content:flex-end}.kuloka-theme-color{width:24px;height:14px;background:var(--color);border:1px solid rgba(255,255,255,.18)}
-.kuloka-status{color:var(--muted);font-size:13px;font-weight:700;text-align:right}.kuloka-info-row{display:block;line-height:1.45;white-space:normal}
+.kuloka-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,30px);gap:8px;align-items:center}.kuloka-theme{width:30px;height:30px;border:0;border-radius:50%;background:radial-gradient(circle at 30% 34%,var(--main-color) 0 24%,transparent 54%),radial-gradient(circle at 68% 64%,var(--second-color) 0 26%,transparent 58%),linear-gradient(135deg,var(--main-color) 0 30%,var(--second-color) 58% 100%);padding:0;cursor:pointer;box-shadow:inset 0 1px 7px rgba(255,255,255,.2),inset 0 -7px 10px rgba(0,0,0,.38);transition:transform .12s ease,filter .12s ease,box-shadow .12s ease}.kuloka-theme:hover{transform:translateY(-1px);filter:saturate(1.18) brightness(1.08)}.kuloka-theme.active{box-shadow:0 0 10px rgba(157,255,71,.55),inset 0 1px 7px rgba(255,255,255,.24),inset 0 -7px 10px rgba(0,0,0,.4)}
+.kuloka-spam-counter{color:var(--main);font-weight:800;margin-left:0;white-space:nowrap}.kuloka-status{color:var(--muted);font-size:13px;font-weight:700;text-align:right}.kuloka-info-row{display:block;line-height:1.45;white-space:normal;overflow-wrap:normal;padding:4px 0}
 .kuloka-author{min-height:320px}.kuloka-author-inner{display:grid;place-items:center;min-height:260px;text-align:center}.kuloka-author-logo{font-size:72px;font-weight:900;letter-spacing:-4px;line-height:.9;text-shadow:0 0 18px rgba(185,255,0,.45)}.kuloka-author-by{margin-top:12px;color:#fff;font-size:18px;font-weight:900;letter-spacing:1px}
-.kuloka-compact .kuloka-row{grid-template-columns:1fr;padding:10px 12px}.kuloka-compact .kuloka-button{flex:1;min-width:0;padding:0 10px}.kuloka-compact .kuloka-status{text-align:left}
-@media(max-width:760px){#kuloka1337{left:10px!important;right:10px;width:auto}.kuloka-body,.kuloka-compact .kuloka-body{grid-template-columns:68px minmax(0,1fr)}.kuloka-row,.kuloka-rgb-panel{grid-template-columns:1fr}.kuloka-workspace{grid-template-columns:1fr;gap:12px}}
+@media(max-width:760px){#kuloka1337{left:10px!important;right:10px;width:auto}.kuloka-body{grid-template-columns:68px minmax(0,1fr)}.kuloka-row,.kuloka-rgb-panel{grid-template-columns:1fr}.kuloka-workspace{grid-template-columns:1fr;gap:12px}}
 `
         }));
     }
-    function composer() {
+    function getComposer() {
         const active = document.activeElement;
-        if (isField(active)) return active;
-        return [...document.querySelectorAll('[contenteditable="true"][role="textbox"],[contenteditable="true"],textarea,input[type="text"]')].find(isField);
+        if (isField(active) && !isOwnUi(active)) return active;
+        return [...document.querySelectorAll('[contenteditable="true"][role="textbox"],[contenteditable="true"],textarea,input[type="text"]')]
+            .find(el => isField(el) && !isOwnUi(el));
     }
     function isField(el) {
         if (!el || !(el instanceof HTMLElement)) return false;
         return el.isContentEditable || ['input', 'textarea'].includes(el.tagName.toLowerCase());
     }
+    function isOwnUi(el) {
+        return Boolean((app && app.contains(el)) || (launcher && launcher.contains(el)));
+    }
     function insertDraft() {
-        const target = composer();
+        const target = getComposer();
         if (!target) return setStatus('Focus the message box first');
         const text = state.doubleMode ? `${state.message}\n${state.message}` : state.message;
         target.focus();
@@ -224,12 +227,12 @@
         const range = h('input', {
             class: 'kuloka-range',
             type: 'range',
-            min: '0',
+            min: '1',
             max: '50',
             value: String(state.speed),
             style: { '--fill': `${state.speed * 2}%` },
             oninput: e => {
-                state.speed = Number(e.target.value);
+                state.speed = clampNumber(Number(e.target.value), 1, 50);
                 e.target.style.setProperty('--fill', `${state.speed * 2}%`);
                 value.textContent = String(state.speed);
                 save();
@@ -264,14 +267,11 @@
                 ...THEMES.map(([id, name, main, second]) => h('button', {
                     type: 'button',
                     class: `kuloka-theme${state.theme === id ? ' active' : ''}`,
+                    title: name,
+                    'aria-label': name,
+                    style: { '--main-color': main, '--second-color': second },
                     onclick: () => setTheme(id)
-                },
-                    h('span', {}, name),
-                    h('span', { class: 'kuloka-theme-colors' },
-                        h('span', { class: 'kuloka-theme-color', style: { '--color': main } }),
-                        h('span', { class: 'kuloka-theme-color', style: { '--color': second } })
-                    )
-                ))
+                }))
             )
         );
     }
@@ -288,7 +288,12 @@
         });
         const actions = h('div', { class: 'kuloka-actions' },
             h('button', { class: 'kuloka-button', type: 'button', onclick: copyDraft }, 'Copy'),
-            h('button', { class: 'kuloka-button primary', type: 'button', onclick: insertDraft }, 'Insert')
+            h('button', { class: 'kuloka-button primary', type: 'button', onclick: insertDraft }, 'Insert'),
+            h('button', { id: 'kuloka-spam-btn', class: 'kuloka-button', type: 'button', onclick: toggleSpam }, spamActive ? 'STOP' : 'SPAM'),
+            h('span', {
+                id: 'kuloka-spam-counter',
+                class: 'kuloka-spam-counter'
+            }, `${spamCount}/${MAX_SPAM}`)
         );
         root.replaceChildren(workspace(
             panel('Spam',
@@ -305,6 +310,7 @@
             ),
             panel('Info', h('div', { class: 'kuloka-row kuloka-info-row' }, 'Press INSERT to start/stop spam'))
         ));
+        updateSpamUI();
     }
     function renderAuthor(root) {
         root.replaceChildren(
@@ -320,14 +326,6 @@
         );
     }
     function renderSettings(root) {
-        const compact = toggle(state.compact, () => {
-            state.compact = !state.compact;
-            app.classList.toggle('kuloka-compact', state.compact);
-            app.style.width = state.compact ? '420px' : '720px';
-            save();
-            origin();
-            return state.compact;
-        });
         const reset = h('button', {
             class: 'kuloka-button',
             type: 'button',
@@ -335,7 +333,6 @@
                 Object.assign(state, {
                     message: DEFAULTS.message,
                     doubleMode: DEFAULTS.doubleMode,
-                    compact: DEFAULTS.compact,
                     speed: DEFAULTS.speed,
                     accent: DEFAULTS.accent,
                     theme: DEFAULTS.theme,
@@ -351,7 +348,7 @@
             }
         }, 'Reset');
         root.replaceChildren(workspace(
-            panel('Settings', rgbPanel(), row('Compact mode', compact), row('Storage', h('div', { class: 'kuloka-actions' }, reset))),
+            panel('Settings', rgbPanel(), row('Storage', h('div', { class: 'kuloka-actions' }, reset))),
             themePanel()
         ));
     }
@@ -388,11 +385,11 @@
     function createApp() {
         injectStyles();
         createLauncher();
-        app = h('div', { id: 'kuloka1337', class: `kuloka-closed${state.compact ? ' kuloka-compact' : ''}` });
+        app = h('div', { id: 'kuloka1337', class: 'kuloka-closed' });
         Object.assign(app.style, {
             top: `${state.panel.top}px`,
             left: `${state.panel.left}px`,
-            width: state.compact ? '420px' : '720px'
+            width: '620px'
         });
         app.style.setProperty('--accent', state.accent);
 
@@ -501,19 +498,6 @@
     let spamActive = false;
     const MAX_SPAM = 70;
 
-    function getComposer() {
-        const active = document.activeElement;
-        if (active && (active.isContentEditable || active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) {
-            return active;
-        }
-        const selectors = ['[contenteditable="true"]', 'textarea', 'input[type="text"]'];
-        for (const sel of selectors) {
-            const el = document.querySelector(sel);
-            if (el) return el;
-        }
-        return null;
-    }
-
     function sendOneMessage(text) {
         const target = getComposer();
         if (!target) return false;
@@ -542,24 +526,27 @@
                 if (!spamActive) return;
                 const ok2 = sendOneMessage(state.message);
                 if (ok2) spamCount++;
-                updateSpamUI();
                 if (spamCount >= MAX_SPAM) stopSpam();
+                else updateSpamUI();
             }, 80);
         } else {
             // single mode: одно сообщение
             const ok = sendOneMessage(state.message);
             if (ok) spamCount++;
-            updateSpamUI();
             if (spamCount >= MAX_SPAM) stopSpam();
+            else updateSpamUI();
         }
-        updateSpamUI();
     }
 
     function startSpam() {
         if (spamActive) stopSpam();
+        if (!state.message.trim()) {
+            setStatus('Message is empty');
+            return;
+        }
         spamCount = 0;
         spamActive = true;
-        const delayMs = Math.max(80, Math.floor(1000 / state.speed));
+        const delayMs = Math.max(80, Math.floor(1000 / Math.max(1, state.speed)));
         if (spamInterval) clearInterval(spamInterval);
         spamInterval = setInterval(() => {
             if (spamActive) sendSpamIteration();
@@ -586,25 +573,8 @@
         if (counter) counter.textContent = `${spamCount}/${MAX_SPAM}`;
     }
 
-    function addSpamControls() {
-        const actionsDiv = document.querySelector('#kuloka-content .kuloka-actions');
-        if (actionsDiv && !document.getElementById('kuloka-spam-btn')) {
-            const spamBtn = h('button', { id: 'kuloka-spam-btn', class: 'kuloka-button', type: 'button', onclick: toggleSpam }, 'SPAM');
-            const counterSpan = h('span', { id: 'kuloka-spam-counter', style: 'color: var(--main); font-weight: 800; margin-left: 4px;' }, '0/70');
-            actionsDiv.appendChild(spamBtn);
-            actionsDiv.appendChild(counterSpan);
-        }
-    }
-
-    const originalRender = render;
-    render = function(tab) {
-        originalRender(tab);
-        if (tab === 'spam') {
-            setTimeout(addSpamControls, 50);
-        }
-    };
-
     document.addEventListener('keydown', (e) => {
+        if (isOwnUi(e.target)) return;
         if (e.key === 'Insert') {
             e.preventDefault();
             toggleSpam();
