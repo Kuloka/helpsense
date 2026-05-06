@@ -1,0 +1,617 @@
+// ==UserScript==
+// @name         1337 (by kuloka)
+// @namespace    http://tampermonkey.net/
+// @match        https://web.telegram.org/*
+// @grant        none
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    // ==================== ОРИГИНАЛЬНЫЙ КОД (НЕ ТРОГАЛ) ====================
+    const KEY = 'kuloka1337.';
+    const THEMES = [
+        ['white-green', 'WHITE / GREEN', '#9dff47', '#ffffff'],
+        ['green-cyan', 'GREEN / CYAN', '#9dff47', '#36d5ff'],
+        ['green-yellow', 'GREEN / YELLOW', '#9dff47', '#ffe15a'],
+        ['green-pink', 'GREEN / PINK', '#9dff47', '#ff65b7'],
+        ['green-violet', 'GREEN / VIOLET', '#9dff47', '#9c6bff'],
+        ['green-orange', 'GREEN / ORANGE', '#9dff47', '#ff9f43'],
+        ['green-red', 'GREEN / RED', '#9dff47', '#ff4b4b'],
+        ['green-blue', 'GREEN / BLUE', '#9dff47', '#4b7bff'],
+        ['green-mint', 'GREEN / MINT', '#9dff47', '#67ffd2'],
+        ['green-silver', 'GREEN / SILVER', '#9dff47', '#b8c0cc']
+    ];
+    const DEFAULTS = {
+        message: '1337',
+        doubleMode: false,
+        compact: false,
+        speed: 25,
+        accent: '#9dff47',
+        theme: 'white-green',
+        panel: { top: 72, left: 96 },
+        launcher: { top: 10, left: 10 },
+        tab: 'spam'
+    };
+    const state = {
+        message: load('message', DEFAULTS.message),
+        doubleMode: loadBool('doubleMode', DEFAULTS.doubleMode),
+        compact: loadBool('compact', DEFAULTS.compact),
+        speed: loadNumber('speed', DEFAULTS.speed),
+        accent: load('accent', DEFAULTS.accent),
+        theme: load('theme', DEFAULTS.theme),
+        panel: loadPos('position', DEFAULTS.panel),
+        launcher: normalizeLauncher(loadPos('launcherPosition', DEFAULTS.launcher)),
+        tab: 'spam'
+    };
+    if (state.accent === '#7c5cff') state.accent = DEFAULTS.accent;
+
+    let app;
+    let launcher;
+    let statusTimer;
+
+    function load(name, fallback) {
+        const value = localStorage.getItem(KEY + name);
+        return value === null ? fallback : value;
+    }
+    function loadBool(name, fallback) {
+        const value = localStorage.getItem(KEY + name);
+        return value === null ? fallback : value === 'true';
+    }
+    function loadNumber(name, fallback) {
+        const value = Number(localStorage.getItem(KEY + name));
+        return Number.isFinite(value) ? value : fallback;
+    }
+    function loadPos(name, fallback) {
+        try {
+            return { ...fallback, ...JSON.parse(localStorage.getItem(KEY + name) || 'null') };
+        } catch (_) {
+            localStorage.removeItem(KEY + name);
+            return fallback;
+        }
+    }
+    function normalizeLauncher(pos) {
+        if (Number.isFinite(pos.top) && Number.isFinite(pos.left)) {
+            return { top: Math.max(8, pos.top), left: Math.max(8, pos.left) };
+        }
+        return {
+            top: Math.max(8, window.innerHeight - (pos.bottom || 10) - 52),
+            left: Math.max(8, window.innerWidth - (pos.right || 10) - 52)
+        };
+    }
+    function save() {
+        localStorage.setItem(KEY + 'message', state.message);
+        localStorage.setItem(KEY + 'doubleMode', String(state.doubleMode));
+        localStorage.setItem(KEY + 'compact', String(state.compact));
+        localStorage.setItem(KEY + 'speed', String(state.speed));
+        localStorage.setItem(KEY + 'accent', state.accent);
+        localStorage.setItem(KEY + 'theme', state.theme);
+        localStorage.setItem(KEY + 'position', JSON.stringify(state.panel));
+        localStorage.setItem(KEY + 'launcherPosition', JSON.stringify(state.launcher));
+    }
+    function h(tag, props = {}, ...children) {
+        const node = document.createElement(tag);
+        for (const [key, value] of Object.entries(props)) {
+            if (key === 'class') node.className = value;
+            else if (key === 'html') node.innerHTML = value;
+            else if (key === 'style') {
+                for (const [styleKey, styleValue] of Object.entries(value)) {
+                    if (styleKey.startsWith('--')) node.style.setProperty(styleKey, styleValue);
+                    else node.style[styleKey] = styleValue;
+                }
+            }
+            else if (key.startsWith('on')) node.addEventListener(key.slice(2).toLowerCase(), value);
+            else node.setAttribute(key, value);
+        }
+        node.append(...children.filter(Boolean));
+        return node;
+    }
+    function injectStyles() {
+        if (document.getElementById('kuloka1337-style')) return;
+        document.head.appendChild(h('style', {
+            id: 'kuloka1337-style',
+            html: `
+#kuloka1337{--accent:${state.accent};--main:${theme()[2]};--second:${theme()[3]};--lime:#b9ff00;--text:#f2f0ff;--muted:#aaa7c3;position:fixed;top:${state.panel.top}px;left:${state.panel.left}px;width:${state.compact ? 420 : 720}px;max-width:calc(100vw - 24px);height:auto;min-height:0;color:var(--text);background:#0b0b12;border:1px solid #222;box-shadow:0 18px 50px rgba(0,0,0,.48);font-family:Tahoma,Verdana,"Segoe UI",Arial,sans-serif;z-index:999999;overflow:hidden;opacity:1;transform:scale(1);transform-origin:var(--origin-x,50%) var(--origin-y,50%);transition:transform .28s cubic-bezier(.16,1,.3,1),opacity .2s ease,visibility .2s ease}
+#kuloka1337.kuloka-closed{opacity:0;visibility:hidden;pointer-events:none;transform:scale(.06)}
+#kuloka1337.kuloka-compact{width:420px;min-height:0}
+#kuloka1337 *{box-sizing:border-box}
+#kuloka-launcher{position:fixed;top:${state.launcher.top}px;left:${state.launcher.left}px;width:52px;height:52px;display:grid;place-items:center;background:#090b10;border:0;border-radius:13px;box-shadow:0 0 16px rgba(108,216,255,.28),0 10px 28px rgba(0,0,0,.45);font:900 20px Tahoma,Verdana,"Segoe UI",Arial,sans-serif;cursor:pointer;z-index:999998;user-select:none;touch-action:none;padding:2px;overflow:hidden;transition:transform .16s ease,box-shadow .16s ease}
+#kuloka-launcher:hover{box-shadow:0 0 28px rgba(157,255,71,.32),0 12px 32px rgba(0,0,0,.45);transform:translateY(-1px)}
+#kuloka-launcher:after{content:"";position:absolute;inset:-42%;background:conic-gradient(from 0deg,#36d5ff,#9c6bff,#ff65b7,#ffe15a,#9dff47,#36d5ff);animation:kuloka-spin 3.2s linear infinite}
+#kuloka-launcher:before{content:"";position:absolute;inset:2px;border-radius:11px;background:radial-gradient(circle at 50% 72%,rgba(185,255,0,.18),transparent 46%),repeating-linear-gradient(135deg,rgba(255,255,255,.13) 0 1px,transparent 1px 11px),#090b10;z-index:1}
+.kuloka-mark{position:relative;z-index:2;letter-spacing:-1px;text-shadow:0 0 10px rgba(185,255,0,.95),0 0 22px rgba(185,255,0,.45)}
+.kuloka-one{color:#fff;text-shadow:0 0 10px rgba(255,255,255,.5)}
+.kuloka-three{color:var(--lime)}
+@keyframes kuloka-spin{to{transform:rotate(360deg)}}
+.kuloka-top{height:10px;padding:0;border-bottom:1px solid #222;background:linear-gradient(90deg,var(--second),var(--main));cursor:move;user-select:none}
+.kuloka-body{display:grid;grid-template-columns:80px 1fr;min-height:0;background:radial-gradient(circle at 1px 1px,rgba(255,255,255,.06) 1px,transparent 1px),#080909;background-size:4px 4px}
+.kuloka-body>*{min-width:0}.kuloka-compact .kuloka-body{grid-template-columns:72px minmax(0,1fr);min-height:0}
+.kuloka-nav{display:flex;flex-direction:column;align-items:center;gap:22px;padding:28px 8px;background:linear-gradient(90deg,rgba(255,255,255,.035),transparent 42%),#090a0b;border-right:1px solid #222}
+.kuloka-compact .kuloka-nav{padding:10px 0}
+.kuloka-tab{width:56px;height:56px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:rgba(255,255,255,.34);padding:0;cursor:pointer;transition:color .18s ease,filter .18s ease}
+.kuloka-tab svg{width:34px;height:34px;stroke:currentColor;fill:none;stroke-width:1.55}.kuloka-tab.active{color:var(--main);filter:drop-shadow(0 0 8px rgba(157,255,71,.55))}
+.kuloka-content{padding:16px 22px 24px;opacity:1;transform:translateY(0);transition:opacity .18s ease,transform .18s ease}.kuloka-content.switching{opacity:0;transform:translateY(8px)}
+.kuloka-title{color:rgba(255,255,255,.66);font-size:12px;text-transform:uppercase;font-weight:800;margin-bottom:10px}
+.kuloka-workspace{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}.kuloka-panel{min-height:0;padding:12px;border:1px solid #242424;background:rgba(11,12,12,.78)}
+.kuloka-row{min-height:34px;display:grid;grid-template-columns:170px 1fr;align-items:center;gap:12px;margin-bottom:5px;padding:4px 8px}.kuloka-label{color:#d8d5ec;font-size:14px;font-weight:700}
+.kuloka-input{width:100%;min-height:34px;color:var(--text);background:#202020;border:1px solid #252525;border-radius:0;padding:0 10px;outline:none;font:inherit}.kuloka-input:focus{border-color:var(--accent)}
+.kuloka-actions{display:flex;gap:10px;justify-content:flex-end}.kuloka-button{min-height:34px;border:1px solid #292929;background:#202020;color:#fff;padding:0 14px;font:inherit;font-weight:800;cursor:pointer}.kuloka-button.primary{background:var(--main);border-color:var(--main);color:#111;text-shadow:none}
+.kuloka-switch{justify-self:end;width:11px;height:11px;border:1px solid #333;background:#202020;padding:0;cursor:pointer}.kuloka-switch.on{background:var(--main);border-color:var(--main)}.kuloka-switch:before{content:none}
+.kuloka-meter{display:grid;grid-template-columns:1fr 42px;align-items:center;gap:10px}.kuloka-range{--fill:50%;height:8px;appearance:none;background:linear-gradient(90deg,var(--main) var(--fill),#333 var(--fill));border:1px solid #1d1d1d;outline:none}.kuloka-range::-webkit-slider-thumb{appearance:none;width:0;height:0}.kuloka-range::-moz-range-thumb{width:0;height:0;border:0}.kuloka-meter-value{color:#fff;font-size:12px;font-weight:800;text-align:center}
+.kuloka-rgb-panel{display:grid;grid-template-columns:92px minmax(0,1fr);align-items:center;gap:10px;margin-bottom:12px;padding:6px 8px;border:1px solid #242424;background:linear-gradient(90deg,rgba(54,213,255,.1),rgba(255,101,183,.08),rgba(157,255,71,.08)),rgba(11,12,12,.82)}
+.kuloka-rgb-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.kuloka-swatch{width:22px;height:22px;border:1px solid rgba(255,255,255,.22);background:var(--swatch);cursor:pointer}.kuloka-color{width:34px;min-height:28px;padding:0;border:1px solid #333;background:#111;cursor:pointer}
+.kuloka-theme-grid{display:grid;grid-template-columns:1fr;gap:8px}.kuloka-theme{display:grid;grid-template-columns:1fr 52px;align-items:center;gap:10px;min-height:28px;border:1px solid #242424;background:#101111;color:#d8d5ec;padding:4px 8px;font:inherit;font-size:12px;font-weight:800;text-align:left;cursor:pointer}.kuloka-theme.active{color:#fff;border-color:var(--main);box-shadow:inset 0 0 0 1px rgba(157,255,71,.45)}.kuloka-theme-colors{display:flex;justify-content:flex-end}.kuloka-theme-color{width:24px;height:14px;background:var(--color);border:1px solid rgba(255,255,255,.18)}
+.kuloka-status{color:var(--muted);font-size:13px;font-weight:700;text-align:right}.kuloka-info-row{display:block;line-height:1.45;white-space:normal}
+.kuloka-author{min-height:320px}.kuloka-author-inner{display:grid;place-items:center;min-height:260px;text-align:center}.kuloka-author-logo{font-size:72px;font-weight:900;letter-spacing:-4px;line-height:.9;text-shadow:0 0 18px rgba(185,255,0,.45)}.kuloka-author-by{margin-top:12px;color:#fff;font-size:18px;font-weight:900;letter-spacing:1px}
+.kuloka-compact .kuloka-row{grid-template-columns:1fr;padding:10px 12px}.kuloka-compact .kuloka-button{flex:1;min-width:0;padding:0 10px}.kuloka-compact .kuloka-status{text-align:left}
+@media(max-width:760px){#kuloka1337{left:10px!important;right:10px;width:auto}.kuloka-body,.kuloka-compact .kuloka-body{grid-template-columns:68px minmax(0,1fr)}.kuloka-row,.kuloka-rgb-panel{grid-template-columns:1fr}.kuloka-workspace{grid-template-columns:1fr;gap:12px}}
+`
+        }));
+    }
+    function composer() {
+        const active = document.activeElement;
+        if (isField(active)) return active;
+        return [...document.querySelectorAll('[contenteditable="true"][role="textbox"],[contenteditable="true"],textarea,input[type="text"]')].find(isField);
+    }
+    function isField(el) {
+        if (!el || !(el instanceof HTMLElement)) return false;
+        return el.isContentEditable || ['input', 'textarea'].includes(el.tagName.toLowerCase());
+    }
+    function insertDraft() {
+        const target = composer();
+        if (!target) return setStatus('Focus the message box first');
+        const text = state.doubleMode ? `${state.message}\n${state.message}` : state.message;
+        target.focus();
+        if (!document.execCommand('insertText', false, text) && 'value' in target) {
+            const start = target.selectionStart || target.value.length;
+            const end = target.selectionEnd || target.value.length;
+            target.value = target.value.slice(0, start) + text + target.value.slice(end);
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        setStatus(state.doubleMode ? 'Inserted 2 drafts' : 'Inserted draft');
+    }
+    async function copyDraft() {
+        try {
+            await navigator.clipboard.writeText(state.doubleMode ? `${state.message}\n${state.message}` : state.message);
+            setStatus('Copied');
+        } catch (_) {
+            setStatus('Clipboard is blocked');
+        }
+    }
+    function setStatus(text) {
+        const el = document.getElementById('kuloka-status');
+        if (!el) return;
+        clearTimeout(statusTimer);
+        el.textContent = text;
+        statusTimer = setTimeout(() => {
+            const current = document.getElementById('kuloka-status');
+            if (current) current.textContent = 'Ready';
+        }, 1400);
+    }
+    function setAccent(color) {
+        state.accent = color;
+        app?.style.setProperty('--accent', color);
+        app?.style.setProperty('--main', color);
+        save();
+    }
+    function theme() {
+        return THEMES.find(item => item[0] === state.theme) || THEMES[0];
+    }
+    function setTheme(id) {
+        state.theme = id;
+        state.accent = theme()[2];
+        if (app) {
+            app.style.setProperty('--accent', state.accent);
+            app.style.setProperty('--main', theme()[2]);
+            app.style.setProperty('--second', theme()[3]);
+        }
+        save();
+        render('settings');
+    }
+    function row(label, control) {
+        return h('div', { class: 'kuloka-row' }, h('div', { class: 'kuloka-label' }, label), control);
+    }
+    function toggle(value, onChange) {
+        const button = h('button', { type: 'button', class: `kuloka-switch${value ? ' on' : ''}` });
+        button.onclick = () => {
+            const next = onChange();
+            button.classList.toggle('on', next);
+        };
+        return button;
+    }
+    function speedMeter() {
+        const value = h('div', { class: 'kuloka-meter-value' }, String(state.speed));
+        const range = h('input', {
+            class: 'kuloka-range',
+            type: 'range',
+            min: '0',
+            max: '50',
+            value: String(state.speed),
+            style: { '--fill': `${state.speed * 2}%` },
+            oninput: e => {
+                state.speed = Number(e.target.value);
+                e.target.style.setProperty('--fill', `${state.speed * 2}%`);
+                value.textContent = String(state.speed);
+                save();
+                // if spam active, restart with new speed
+                if (spamActive) {
+                    stopSpam();
+                    startSpam();
+                }
+            }
+        });
+        return h('div', { class: 'kuloka-meter' }, range, value);
+    }
+    function rgbPanel() {
+        const colors = ['#9dff47', '#36d5ff', '#ff65b7', '#ffe15a', '#ffffff'];
+        return h('div', { class: 'kuloka-rgb-panel' },
+            h('div', { class: 'kuloka-label' }, 'RGB panel'),
+            h('div', { class: 'kuloka-rgb-controls' },
+                ...colors.map(color => h('button', {
+                    type: 'button',
+                    class: 'kuloka-swatch',
+                    title: color,
+                    style: { '--swatch': color },
+                    onclick: () => setAccent(color)
+                })),
+                h('input', { class: 'kuloka-color', type: 'color', value: state.accent, oninput: e => setAccent(e.target.value) })
+            )
+        );
+    }
+    function themePanel() {
+        return panel('Themes',
+            h('div', { class: 'kuloka-theme-grid' },
+                ...THEMES.map(([id, name, main, second]) => h('button', {
+                    type: 'button',
+                    class: `kuloka-theme${state.theme === id ? ' active' : ''}`,
+                    onclick: () => setTheme(id)
+                },
+                    h('span', {}, name),
+                    h('span', { class: 'kuloka-theme-colors' },
+                        h('span', { class: 'kuloka-theme-color', style: { '--color': main } }),
+                        h('span', { class: 'kuloka-theme-color', style: { '--color': second } })
+                    )
+                ))
+            )
+        );
+    }
+    function renderSpam(root) {
+        const input = h('input', {
+            class: 'kuloka-input',
+            type: 'text',
+            value: state.message,
+            placeholder: 'Message text',
+            oninput: e => {
+                state.message = e.target.value;
+                save();
+            }
+        });
+        const actions = h('div', { class: 'kuloka-actions' },
+            h('button', { class: 'kuloka-button', type: 'button', onclick: copyDraft }, 'Copy'),
+            h('button', { class: 'kuloka-button primary', type: 'button', onclick: insertDraft }, 'Insert')
+        );
+        root.replaceChildren(workspace(
+            panel('Spam',
+                row('Message', input),
+                row('Double draft', toggle(state.doubleMode, () => {
+                    state.doubleMode = !state.doubleMode;
+                    save();
+                    setStatus(state.doubleMode ? 'Double mode on' : 'Double mode off');
+                    return state.doubleMode;
+                })),
+                row('msg/sec', speedMeter()),
+                row('Actions', actions),
+                row('Status', h('div', { id: 'kuloka-status', class: 'kuloka-status' }, 'Ready'))
+            ),
+            panel('Info', h('div', { class: 'kuloka-row kuloka-info-row' }, 'Press INSERT to start/stop spam'))
+        ));
+    }
+    function renderAuthor(root) {
+        root.replaceChildren(
+            h('section', { class: 'kuloka-panel kuloka-author' },
+                h('div', { class: 'kuloka-title' }, 'ABOUT'),
+                h('div', { class: 'kuloka-author-inner' },
+                    h('div', {},
+                        h('div', { class: 'kuloka-author-logo', html: '<span class="kuloka-one">1</span><span class="kuloka-three">337</span>' }),
+                        h('div', { class: 'kuloka-author-by' }, 'BY KULOKA')
+                    )
+                )
+            )
+        );
+    }
+    function renderSettings(root) {
+        const compact = toggle(state.compact, () => {
+            state.compact = !state.compact;
+            app.classList.toggle('kuloka-compact', state.compact);
+            app.style.width = state.compact ? '420px' : '720px';
+            save();
+            origin();
+            return state.compact;
+        });
+        const reset = h('button', {
+            class: 'kuloka-button',
+            type: 'button',
+            onclick: () => {
+                Object.assign(state, {
+                    message: DEFAULTS.message,
+                    doubleMode: DEFAULTS.doubleMode,
+                    compact: DEFAULTS.compact,
+                    speed: DEFAULTS.speed,
+                    accent: DEFAULTS.accent,
+                    theme: DEFAULTS.theme,
+                    panel: { ...DEFAULTS.panel },
+                    launcher: { ...DEFAULTS.launcher },
+                    tab: 'settings'
+                });
+                save();
+                app.remove();
+                launcher.remove();
+                app = launcher = null;
+                createApp();
+            }
+        }, 'Reset');
+        root.replaceChildren(workspace(
+            panel('Settings', rgbPanel(), row('Compact mode', compact), row('Storage', h('div', { class: 'kuloka-actions' }, reset))),
+            themePanel()
+        ));
+    }
+    function panel(title, ...children) {
+        return h('section', { class: 'kuloka-panel' }, h('div', { class: 'kuloka-title' }, title), ...children);
+    }
+    function workspace(...panels) {
+        return h('div', { class: 'kuloka-workspace' }, ...panels);
+    }
+    function render(tab) {
+        state.tab = tab;
+        const root = document.getElementById('kuloka-content');
+        document.querySelectorAll('.kuloka-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+        root.classList.add('switching');
+        setTimeout(() => {
+            if (tab === 'settings') renderSettings(root);
+            else if (tab === 'author') renderAuthor(root);
+            else renderSpam(root);
+            requestAnimationFrame(() => root.classList.remove('switching'));
+        }, 120);
+    }
+    function icon(tab) {
+        if (tab === 'settings') {
+            return '<svg viewBox="0 0 32 32"><circle cx="11" cy="16" r="4"></circle><circle cx="21" cy="16" r="4"></circle><path d="M11 3.5v4M11 24.5v4M3.5 16h4M14.8 8.3l2.8-2.8M4.4 25.6l2.8-2.8M21 3.5v4M21 24.5v4M24.8 8.3l2.8-2.8M14.4 25.6l2.8-2.8M24.5 16h4"></path></svg>';
+        }
+        if (tab === 'author') {
+            return '<svg viewBox="0 0 32 32"><circle cx="16" cy="10" r="5"></circle><path d="M7 28c.8-6 4.2-9.5 9-9.5s8.2 3.5 9 9.5"></path></svg>';
+        }
+        return '<svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="9.5"></circle><circle cx="16" cy="16" r="2.3"></circle><path d="M16 2.5v6M16 23.5v6M2.5 16h6M23.5 16h6"></path></svg>';
+    }
+    function logo() {
+        return '<span class="kuloka-mark"><span class="kuloka-one">1</span><span class="kuloka-three">3</span></span>';
+    }
+    function createApp() {
+        injectStyles();
+        createLauncher();
+        app = h('div', { id: 'kuloka1337', class: `kuloka-closed${state.compact ? ' kuloka-compact' : ''}` });
+        Object.assign(app.style, {
+            top: `${state.panel.top}px`,
+            left: `${state.panel.left}px`,
+            width: state.compact ? '420px' : '720px'
+        });
+        app.style.setProperty('--accent', state.accent);
+
+        const nav = h('nav', { class: 'kuloka-nav' });
+        for (const [tab, label] of [['spam', 'Spam'], ['settings', 'Settings'], ['author', 'Author']]) {
+            nav.appendChild(h('button', {
+                type: 'button',
+                class: 'kuloka-tab',
+                'data-tab': tab,
+                title: label,
+                'aria-label': label,
+                html: icon(tab),
+                onclick: () => render(tab)
+            }));
+        }
+
+        const top = h('div', { class: 'kuloka-top' });
+        app.append(top, h('div', { class: 'kuloka-body' }, nav, h('main', { id: 'kuloka-content', class: 'kuloka-content' })));
+        document.body.appendChild(app);
+        drag(app, top, pos => {
+            state.panel = pos;
+            save();
+            origin();
+        });
+        render(state.tab);
+        origin();
+    }
+    function createLauncher() {
+        if (document.getElementById('kuloka-launcher')) return;
+        launcher = h('button', { id: 'kuloka-launcher', type: 'button', title: 'Open 1337 (by kuloka)', html: logo() });
+        Object.assign(launcher.style, { top: `${state.launcher.top}px`, left: `${state.launcher.left}px` });
+        document.body.appendChild(launcher);
+        drag(launcher, launcher, pos => {
+            state.launcher = pos;
+            save();
+            origin();
+        }, togglePanel);
+    }
+    function drag(target, handle, onMove, onClick) {
+        let startX, startY, startTop, startLeft, moved;
+        handle.onmousedown = event => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            moved = false;
+            startX = event.clientX;
+            startY = event.clientY;
+            startTop = parseFloat(target.style.top) || target.offsetTop;
+            startLeft = parseFloat(target.style.left) || target.offsetLeft;
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', stop, { once: true });
+        };
+        function move(event) {
+            const dx = event.clientX - startX;
+            const dy = event.clientY - startY;
+            if (Math.abs(dx) + Math.abs(dy) > 4) moved = true;
+            const top = clamp(startTop + dy, 8, window.innerHeight - target.offsetHeight - 8);
+            const left = clamp(startLeft + dx, 8, window.innerWidth - target.offsetWidth - 8);
+            Object.assign(target.style, { top: `${top}px`, left: `${left}px` });
+            onMove({ top, left });
+        }
+        function stop() {
+            document.removeEventListener('mousemove', move);
+            if (!moved && onClick) onClick();
+        }
+    }
+    function clamp(value, min, max) {
+        return Math.min(Math.max(min, value), Math.max(min, max));
+    }
+    function origin() {
+        if (!app || !launcher) return;
+        const rect = launcher.getBoundingClientRect();
+        app.style.setProperty('--origin-x', `${rect.left + rect.width / 2 - app.offsetLeft}px`);
+        app.style.setProperty('--origin-y', `${rect.top + rect.height / 2 - app.offsetTop}px`);
+    }
+    function placePanel() {
+        const gap = 10;
+        const l = launcher.getBoundingClientRect();
+        const left = clamp(l.left, 8, window.innerWidth - app.offsetWidth - 8);
+        const above = l.top - app.offsetHeight - gap;
+        const top = above >= 8 ? above : clamp(l.bottom + gap, 8, window.innerHeight - app.offsetHeight - 8);
+        Object.assign(app.style, { top: `${top}px`, left: `${left}px` });
+        state.panel = { top, left };
+        save();
+        origin();
+    }
+    function togglePanel() {
+        if (!app) return;
+        if (app.classList.contains('kuloka-closed')) {
+            placePanel();
+            requestAnimationFrame(() => {
+                app.classList.remove('kuloka-closed');
+                origin();
+            });
+        } else {
+            origin();
+            app.classList.add('kuloka-closed');
+        }
+    }
+    function init() {
+        if (!document.getElementById('kuloka1337')) createApp();
+    }
+
+    // ==================== СПАМ-МОДУЛЬ (БЕЗ ЭМОДЗИ, С DOUBLE DRAFT) ====================
+    let spamInterval = null;
+    let spamCount = 0;
+    let spamActive = false;
+    const MAX_SPAM = 70;
+
+    function getComposer() {
+        const active = document.activeElement;
+        if (active && (active.isContentEditable || active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) {
+            return active;
+        }
+        const selectors = ['[contenteditable="true"]', 'textarea', 'input[type="text"]'];
+        for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el) return el;
+        }
+        return null;
+    }
+
+    function sendOneMessage(text) {
+        const target = getComposer();
+        if (!target) return false;
+        target.focus();
+        document.execCommand('insertText', false, text);
+        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true });
+        target.dispatchEvent(enterEvent);
+        return true;
+    }
+
+    function sendSpamIteration() {
+        if (!spamActive) return;
+        const target = getComposer();
+        if (!target) {
+            setStatus('Focus message box');
+            stopSpam();
+            return;
+        }
+
+        if (state.doubleMode) {
+            // double mode: два сообщения подряд
+            const ok1 = sendOneMessage(state.message);
+            if (ok1) spamCount++;
+            // маленькая задержка между двумя сообщениями, чтобы не склеивались
+            setTimeout(() => {
+                if (!spamActive) return;
+                const ok2 = sendOneMessage(state.message);
+                if (ok2) spamCount++;
+                updateSpamUI();
+                if (spamCount >= MAX_SPAM) stopSpam();
+            }, 80);
+        } else {
+            // single mode: одно сообщение
+            const ok = sendOneMessage(state.message);
+            if (ok) spamCount++;
+            updateSpamUI();
+            if (spamCount >= MAX_SPAM) stopSpam();
+        }
+        updateSpamUI();
+    }
+
+    function startSpam() {
+        if (spamActive) stopSpam();
+        spamCount = 0;
+        spamActive = true;
+        const delayMs = Math.max(80, Math.floor(1000 / state.speed));
+        if (spamInterval) clearInterval(spamInterval);
+        spamInterval = setInterval(() => {
+            if (spamActive) sendSpamIteration();
+        }, delayMs);
+        updateSpamUI();
+        const statusSpan = document.getElementById('kuloka-status');
+        if (statusSpan) statusSpan.textContent = 'SPAM ON';
+    }
+
+    function stopSpam() {
+        if (spamInterval) { clearInterval(spamInterval); spamInterval = null; }
+        spamActive = false;
+        updateSpamUI();
+        const statusSpan = document.getElementById('kuloka-status');
+        if (statusSpan) statusSpan.textContent = 'SPAM OFF';
+    }
+
+    function toggleSpam() { spamActive ? stopSpam() : startSpam(); }
+
+    function updateSpamUI() {
+        const btn = document.getElementById('kuloka-spam-btn');
+        const counter = document.getElementById('kuloka-spam-counter');
+        if (btn) btn.textContent = spamActive ? 'STOP' : 'SPAM';
+        if (counter) counter.textContent = `${spamCount}/${MAX_SPAM}`;
+    }
+
+    function addSpamControls() {
+        const actionsDiv = document.querySelector('#kuloka-content .kuloka-actions');
+        if (actionsDiv && !document.getElementById('kuloka-spam-btn')) {
+            const spamBtn = h('button', { id: 'kuloka-spam-btn', class: 'kuloka-button', type: 'button', onclick: toggleSpam }, 'SPAM');
+            const counterSpan = h('span', { id: 'kuloka-spam-counter', style: 'color: var(--main); font-weight: 800; margin-left: 4px;' }, '0/70');
+            actionsDiv.appendChild(spamBtn);
+            actionsDiv.appendChild(counterSpan);
+        }
+    }
+
+    const originalRender = render;
+    render = function(tab) {
+        originalRender(tab);
+        if (tab === 'spam') {
+            setTimeout(addSpamControls, 50);
+        }
+    };
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Insert') {
+            e.preventDefault();
+            toggleSpam();
+        }
+    });
+
+    document.readyState === 'loading'
+        ? document.addEventListener('DOMContentLoaded', init, { once: true })
+        : init();
+})();
