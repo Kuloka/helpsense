@@ -8,8 +8,14 @@ It includes a simple chat screen, Google Translate-style translator, original
 color themes plus flag themes, watermark settings, saved chats and quick tools,
 but it does not automate message sending.
 
+<<<<<<< HEAD
 Requirements
 ------------
+=======
+preview
+<img width="998" height="394" alt="image" src="https://github.com/user-attachments/assets/58b11348-b3ae-49b2-bdcb-2d1fcdba782a" />
+
+>>>>>>> cc8f2b99ca23df6aa7322f49f841ddad83579e22
 
 - Node.js 20 or newer
 - npm
