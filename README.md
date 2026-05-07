@@ -14,8 +14,8 @@ but it does not automate message sending.
 <<<<<<< HEAD
 Requirements
 ------------
-=======
-preview
+PREVIEW
+
 <img width="962" height="671" alt="image" src="https://github.com/user-attachments/assets/a2f1b1e7-0f5e-4556-9574-705532eb4f7c" />
 
 
