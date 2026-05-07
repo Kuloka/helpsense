@@ -13,7 +13,8 @@ Requirements
 ------------
 =======
 preview
-<img width="998" height="394" alt="image" src="https://github.com/user-attachments/assets/58b11348-b3ae-49b2-bdcb-2d1fcdba782a" />
+<img width="962" height="671" alt="image" src="https://github.com/user-attachments/assets/a2f1b1e7-0f5e-4556-9574-705532eb4f7c" />
+
 
 >>>>>>> cc8f2b99ca23df6aa7322f49f841ddad83579e22
 
