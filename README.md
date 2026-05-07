@@ -68,3 +68,4 @@ npm run dist:linux
 ```
 
 Build output appears in `release/`.
+CAN BUG ON WIN DONT OPEN 2 WINDOWS OR SECOND WINDOW GET BLACK SCREEN
