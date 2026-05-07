@@ -1,3 +1,6 @@
+<img width="396" height="104" alt="image" src="https://github.com/user-attachments/assets/8a1ff54f-c588-427f-8688-2dc3c4aec431" />
+
+
 helpsense desktop
 =================
 
@@ -15,8 +18,6 @@ Requirements
 preview
 <img width="962" height="671" alt="image" src="https://github.com/user-attachments/assets/a2f1b1e7-0f5e-4556-9574-705532eb4f7c" />
 
-
->>>>>>> cc8f2b99ca23df6aa7322f49f841ddad83579e22
 
 - Node.js 20 or newer
 - npm
