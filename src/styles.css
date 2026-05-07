@@ -297,14 +297,13 @@ h1 {
 
 .chat-log::-webkit-scrollbar-track {
   margin: 58px 0 132px;
-  border-radius: 999px;
-  background: #202124;
-  border: 1px solid #2b2c31;
+  background: transparent;
 }
 
 .chat-log::-webkit-scrollbar-thumb {
-  border: 2px solid #202124;
+  border: 3px solid transparent;
   border-radius: 999px;
+  background-clip: padding-box;
   background: #5a5b61;
 }
 
@@ -370,6 +369,20 @@ h1 {
   height: 13px;
   background: #26272a;
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.type-cursor {
+  display: inline-block;
+  width: .62em;
+  height: 1em;
+  margin-left: 3px;
+  transform: translateY(.16em);
+  background: #fff;
+  animation: caret-blink .9s steps(1) infinite;
+}
+
+@keyframes caret-blink {
+  50% { opacity: .25; }
 }
 
 .typing-bubble {

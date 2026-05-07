@@ -55,6 +55,9 @@ const watermarkText = document.getElementById('watermarkText');
 const watermarkStyle = document.getElementById('watermarkStyle');
 const watermarkPositionSelect = document.getElementById('watermarkPositionSelect');
 const languageSelect = document.getElementById('languageSelect');
+let translateRequestId = 0;
+let typewriterTimer = null;
+let translateTypeTimer = null;
 
 const I18N = {
   en: {
@@ -62,12 +65,17 @@ const I18N = {
     chat_placeholder: 'Ask ChatGPT',
     empty_chat: 'Ask something below. The answer will appear here.',
     lang_auto: 'Detect language',
-    lang_ru: 'Russian',
+    lang_ru: 'Русский',
     lang_en: 'English',
-    lang_uk: 'Ukrainian',
-    lang_be: 'Belarusian',
-    lang_tr: 'Turkish',
-    lang_kk: 'Kazakh',
+    lang_uk: 'Українська',
+    lang_be: 'Беларуская',
+    lang_tr: 'Türkçe',
+    lang_kk: 'Қазақша',
+    lang_es: 'Español',
+    lang_pt: 'Português',
+    lang_de: 'Deutsch',
+    lang_fr: 'Français',
+    lang_pl: 'Polski',
     translate_input: 'Enter text',
     translate_output: 'Translation',
     watermark: 'Watermark',
@@ -98,11 +106,16 @@ const I18N = {
     empty_chat: 'Спросите что-нибудь внизу. Ответ появится здесь.',
     lang_auto: 'Определить язык',
     lang_ru: 'Русский',
-    lang_en: 'Английский',
-    lang_uk: 'Украинский',
-    lang_be: 'Белорусский',
-    lang_tr: 'Турецкий',
-    lang_kk: 'Казахский',
+    lang_en: 'English',
+    lang_uk: 'Українська',
+    lang_be: 'Беларуская',
+    lang_tr: 'Türkçe',
+    lang_kk: 'Қазақша',
+    lang_es: 'Español',
+    lang_pt: 'Português',
+    lang_de: 'Deutsch',
+    lang_fr: 'Français',
+    lang_pl: 'Polski',
     translate_input: 'Введите текст',
     translate_output: 'Перевод',
     watermark: 'Ватермарка',
@@ -202,6 +215,47 @@ function showToast(text) {
   showToast.timer = setTimeout(() => toast.classList.remove('show'), 1600);
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function typeText(target, text, onDone, speed = 32) {
+  clearInterval(typewriterTimer);
+  target.innerHTML = '<span class="type-cursor"></span>';
+  target.classList.add('typing-text');
+  let index = 0;
+  typewriterTimer = setInterval(() => {
+    index += 1;
+    target.innerHTML = `${escapeHtml(text.slice(0, index))}<span class="type-cursor"></span>`;
+    chatLog.scrollTop = chatLog.scrollHeight;
+    if (index >= text.length) {
+      clearInterval(typewriterTimer);
+      target.textContent = text;
+      target.classList.remove('typing-text');
+      onDone?.();
+    }
+  }, speed);
+}
+
+function typeTextarea(target, text, speed = 30) {
+  clearInterval(translateTypeTimer);
+  target.value = '';
+  let index = 0;
+  translateTypeTimer = setInterval(() => {
+    index += 1;
+    target.value = text.slice(0, index);
+    if (index >= text.length) {
+      clearInterval(translateTypeTimer);
+      target.value = text;
+    }
+  }, speed);
+}
+
 async function rememberApiKey() {
   return true;
 }
@@ -209,6 +263,13 @@ async function rememberApiKey() {
 async function runAi(payload) {
   await rememberApiKey();
   return window.helpsense?.runOpenAIHelper(payload);
+}
+
+function chatContext() {
+  return state.chatMessages
+    .slice(-8)
+    .map(message => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text}`)
+    .join('\n');
 }
 
 function themeBackground(colors, isFlag, id) {
@@ -293,6 +354,14 @@ function messageBubble(type, text) {
   const bubble = document.createElement('div');
   bubble.className = `message ${type}`;
   bubble.textContent = text;
+  return bubble;
+}
+
+function animatedAssistantBubble(text) {
+  const bubble = messageBubble('assistant', '');
+  typeText(bubble, text, () => {
+    renderChat();
+  });
   return bubble;
 }
 
@@ -427,14 +496,17 @@ chatInput.addEventListener('keydown', event => {
 translateInput.addEventListener('input', event => {
   state.translateInput = event.target.value;
   if (!event.target.value.trim()) {
+    translateRequestId += 1;
+    clearInterval(translateTypeTimer);
     state.translateOutput = '';
     translateOutput.value = '';
+    translateOutput.placeholder = t('translate_output');
     clearTimeout(translateInput.timer);
   } else {
     clearTimeout(translateInput.timer);
     translateInput.timer = setTimeout(() => {
       document.getElementById('translateAi').click();
-    }, 520);
+    }, 360);
   }
   save();
 });
@@ -490,7 +562,7 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   state.isThinking = true;
   renderChat();
   setStatus('ChatGPT is thinking...');
-  const response = await runAi({ task: 'chat', text: question });
+  const response = await runAi({ task: 'chat', text: chatContext() });
   state.isThinking = false;
   if (!response?.ok) {
     renderChat();
@@ -506,7 +578,9 @@ document.getElementById('sendChat').addEventListener('click', async () => {
     }
   }
   save();
-  renderChat();
+  chatLog.replaceChildren();
+  state.chatMessages.slice(0, -1).forEach(message => chatLog.appendChild(messageBubble(message.role, message.text)));
+  chatLog.appendChild(animatedAssistantBubble(response.text));
   setStatus('ChatGPT answered');
 });
 
@@ -522,8 +596,18 @@ document.getElementById('swapLang').addEventListener('click', () => {
 });
 
 document.getElementById('translateAi').addEventListener('click', async () => {
-  if (!translateInput.value.trim()) return setStatus('Text is empty');
+  if (!translateInput.value.trim()) {
+    translateRequestId += 1;
+    clearInterval(translateTypeTimer);
+    translateOutput.value = '';
+    translateOutput.placeholder = t('translate_output');
+    return setStatus('Text is empty');
+  }
   state.translateInput = translateInput.value;
+  const requestId = ++translateRequestId;
+  clearInterval(translateTypeTimer);
+  translateOutput.value = '';
+  translateOutput.placeholder = '';
   setStatus('Translating...');
   const response = await runAi({
     task: 'translate',
@@ -531,9 +615,16 @@ document.getElementById('translateAi').addEventListener('click', async () => {
     from: fromLang.value,
     to: toLang.value
   });
-  if (!response?.ok) return setStatus(response?.error || 'Translation failed');
-  state.translateOutput = response.text;
-  translateOutput.value = response.text;
+  if (requestId !== translateRequestId) return;
+  if (!response?.ok) {
+    translateOutput.placeholder = t('translate_output');
+    return setStatus(response?.error || 'Translation failed');
+  }
+  const translatedText = String(response.text || '');
+  const translated = translatedText.trim() === '...' ? '' : translatedText;
+  state.translateOutput = translated;
+  translateOutput.placeholder = translated ? '' : t('translate_output');
+  typeTextarea(translateOutput, translated);
   save();
   setStatus('Translated');
 });
