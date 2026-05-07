@@ -84,7 +84,7 @@ ipcMain.handle('set-openai-key', (_event, apiKey) => {
 ipcMain.handle('run-openai-helper', async (_event, payload) => {
   const apiKey = sessionApiKey || process.env.OPENAI_API_KEY;
   const task = String(payload?.task ?? '');
-  const text = String(payload?.text ?? '').slice(0, 6000);
+  const text = String(payload?.text ?? '').slice(0, task === 'translate' ? 2200 : 4200);
   if (!text.trim()) return { ok: false, error: 'Input is empty.' };
 
   const taskInstructions = {

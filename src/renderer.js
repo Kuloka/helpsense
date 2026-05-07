@@ -37,6 +37,7 @@ const DEFAULTS = {
 };
 
 const state = loadState();
+state.isThinking = false;
 
 const status = document.getElementById('status');
 const themeGrid = document.getElementById('themeGrid');
@@ -83,7 +84,13 @@ const I18N = {
     ai_info: 'Online no-key mode is enabled. Local Ollama is used automatically when available.',
     reset_settings: 'Reset Settings',
     about_desc: 'Desktop helper with ChatGPT, translator, themes and watermark.',
-    saved_empty: 'Saved chats appear here.'
+    saved_empty: 'Saved chats appear here.',
+    wm_solid: 'Solid',
+    wm_minimal: 'Minimal',
+    pos_top_left: 'Top Left',
+    pos_top_right: 'Top Right',
+    pos_bottom_left: 'Bottom Left',
+    pos_bottom_right: 'Bottom Right'
   },
   ru: {
     chat_title: 'ChatGPT lite',
@@ -112,7 +119,13 @@ const I18N = {
     ai_info: 'Онлайн-режим без ключа включён. Локальный Ollama используется автоматически, если доступен.',
     reset_settings: 'Сбросить настройки',
     about_desc: 'Помощник с ChatGPT, переводчиком, темами и ватермаркой.',
-    saved_empty: 'Сохранённые чаты появятся здесь.'
+    saved_empty: 'Сохранённые чаты появятся здесь.',
+    wm_solid: 'Обычный',
+    wm_minimal: 'Минималистичный',
+    pos_top_left: 'Сверху слева',
+    pos_top_right: 'Сверху справа',
+    pos_bottom_left: 'Снизу слева',
+    pos_bottom_right: 'Снизу справа'
   }
 };
 
@@ -144,6 +157,13 @@ function applyLanguage() {
   document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
     node.placeholder = t(node.dataset.i18nPlaceholder);
   });
+  document.querySelectorAll('option[data-i18n]').forEach(option => {
+    option.textContent = t(option.dataset.i18n);
+  });
+  watermarkStyle.value = state.watermarkStyle;
+  watermarkPositionSelect.value = state.watermarkPosition;
+  fromLang.value = state.fromLang;
+  toLang.value = state.toLang;
   languageSelect.value = state.language;
 }
 
@@ -261,8 +281,9 @@ function renderChat() {
     return;
   }
   messages.forEach(message => chatLog.appendChild(messageBubble(message.role, message.text)));
+  if (state.isThinking) chatLog.appendChild(typingBubble());
   const last = messages[messages.length - 1];
-  if (last?.role === 'assistant') {
+  if (!state.isThinking && last?.role === 'assistant') {
     chatLog.appendChild(copyAnswerButton());
   }
   chatLog.scrollTop = chatLog.scrollHeight;
@@ -272,6 +293,13 @@ function messageBubble(type, text) {
   const bubble = document.createElement('div');
   bubble.className = `message ${type}`;
   bubble.textContent = text;
+  return bubble;
+}
+
+function typingBubble() {
+  const bubble = document.createElement('div');
+  bubble.className = 'message assistant typing-bubble';
+  bubble.innerHTML = '<span></span><span></span><span></span>';
   return bubble;
 }
 
@@ -401,6 +429,12 @@ translateInput.addEventListener('input', event => {
   if (!event.target.value.trim()) {
     state.translateOutput = '';
     translateOutput.value = '';
+    clearTimeout(translateInput.timer);
+  } else {
+    clearTimeout(translateInput.timer);
+    translateInput.timer = setTimeout(() => {
+      document.getElementById('translateAi').click();
+    }, 520);
   }
   save();
 });
@@ -453,10 +487,15 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   state.chatAnswer = '';
   state.chatMessages.push({ role: 'user', text: question });
   chatInput.value = '';
+  state.isThinking = true;
   renderChat();
   setStatus('ChatGPT is thinking...');
   const response = await runAi({ task: 'chat', text: question });
-  if (!response?.ok) return setStatus(response?.error || 'ChatGPT failed');
+  state.isThinking = false;
+  if (!response?.ok) {
+    renderChat();
+    return setStatus(response?.error || 'ChatGPT failed');
+  }
   state.chatAnswer = response.text;
   state.chatMessages.push({ role: 'assistant', text: response.text });
   if (state.activeSavedId) {
@@ -526,6 +565,7 @@ window.helpsense?.loadAppState().then(saved => {
   Object.assign(state, { ...DEFAULTS, ...saved });
   if (!Array.isArray(state.savedChats)) state.savedChats = [];
   if (!Array.isArray(state.chatMessages)) state.chatMessages = [];
+  state.isThinking = false;
   applyTheme();
   renderThemes();
   render();
