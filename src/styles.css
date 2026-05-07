@@ -161,14 +161,18 @@ h1 strong,
   background: transparent;
   cursor: pointer;
   padding: 0;
+  transition: color .18s ease, filter .18s ease, transform .18s ease;
 }
 
 .tab svg {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   stroke: currentColor;
   fill: none;
   stroke-width: 1.55;
+  overflow: visible;
+  transform-origin: center;
+  transition: transform .22s ease;
 }
 
 .chip-icon {
@@ -178,12 +182,28 @@ h1 strong,
   background: currentColor;
   -webkit-mask: url("microchip.png") center / contain no-repeat;
   mask: url("microchip.png") center / contain no-repeat;
+  transition: transform .22s ease;
 }
 
 .tab:hover,
 .tab.active {
   color: var(--main);
   filter: drop-shadow(0 0 8px rgba(157, 255, 71, .48));
+}
+
+.tab:hover svg,
+.tab:hover .chip-icon {
+  transform: scale(1.03);
+}
+
+.tab[data-tab="settings"] {
+  overflow: visible;
+}
+
+.tab[data-tab="settings"] svg {
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
 }
 
 #view-chat {
@@ -273,6 +293,13 @@ h1 {
   color: #d9d9e3;
   padding: 0;
   cursor: pointer;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.icon-button:hover {
+  background: #3b3c40;
+  color: #fff;
+  transform: translateY(-1px);
 }
 
 .icon-button svg {
@@ -353,6 +380,36 @@ h1 {
   clip-path: polygon(0 0, 100% 100%, 0 100%);
 }
 
+.user-turn {
+  width: 100%;
+  display: grid;
+  justify-items: end;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.user-turn .message.user {
+  margin-bottom: 0;
+}
+
+.sent-quote {
+  max-width: min(72%, 720px);
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: rgba(236, 236, 242, .72);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.sent-quote span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .message.assistant {
   margin-right: auto;
   background: #26272a;
@@ -371,18 +428,27 @@ h1 {
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
-.type-cursor {
-  display: inline-block;
-  width: .62em;
-  height: 1em;
-  margin-left: 3px;
-  transform: translateY(.16em);
-  background: #fff;
-  animation: caret-blink .9s steps(1) infinite;
+.assistant-content {
+  white-space: normal;
 }
 
-@keyframes caret-blink {
-  50% { opacity: .25; }
+.assistant-content p {
+  margin: 0 0 10px;
+}
+
+.assistant-content p:last-child {
+  margin-bottom: 0;
+}
+
+.assistant-content ul,
+.assistant-content ol {
+  margin: 6px 0 12px 22px;
+  padding: 0;
+}
+
+.assistant-content li {
+  margin: 4px 0;
+  padding-left: 4px;
 }
 
 .typing-bubble {
@@ -416,8 +482,8 @@ h1 {
 }
 
 .answer-tools {
-  max-width: 760px;
-  margin: -6px auto 16px;
+  width: fit-content;
+  margin: -6px 0 16px 18px;
   display: flex;
   justify-content: flex-start;
 }
@@ -432,11 +498,13 @@ h1 {
   background: transparent;
   color: #b8b8c4;
   cursor: pointer;
+  transition: background .16s ease, color .16s ease, transform .16s ease;
 }
 
 .copy-answer:hover {
   background: #2f3033;
   color: #fff;
+  transform: translateY(-1px);
 }
 
 .copy-answer svg {
@@ -459,23 +527,249 @@ h1 {
   bottom: 10px;
   min-height: 64px;
   display: grid;
-  grid-template-columns: 1fr 46px;
+  grid-template-columns: 42px 1fr 46px;
   align-items: end;
-  gap: 10px;
+  gap: 6px;
   padding: 10px;
   background: #2f3033;
   border-radius: 18px;
+  overflow: visible;
+}
+
+.chat-bar:has(.selected-quote.show) {
+  padding-top: 56px;
+}
+
+.selected-quote {
+  position: absolute;
+  top: 8px;
+  left: 9px;
+  right: 9px;
+  min-width: 0;
+  height: 34px;
+  display: none;
+  grid-template-columns: 24px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  border-radius: 9px;
+  background: rgba(63, 64, 68, .48);
+  color: rgba(242, 242, 245, .68);
+  animation: quote-in .18s ease both;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease;
+}
+
+.selected-quote.show {
+  display: grid;
+}
+
+.selected-quote:hover {
+  background: rgba(72, 73, 78, .74);
+  color: #f2f2f5;
+}
+
+.selected-quote.active {
+  background: rgba(72, 73, 78, .74);
+  color: #f2f2f5;
+}
+
+.quote-arrow {
+  color: currentColor;
+  font-size: 20px;
+  opacity: .9;
+}
+
+.quote-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  border-radius: 4px;
+  padding: 1px 2px;
+}
+
+.selected-quote.active .quote-text {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+}
+
+.quote-remove {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: currentColor;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background .16s ease, transform .16s ease;
+}
+
+.quote-remove:hover {
+  background: #55565c;
+  transform: scale(1.05);
+}
+
+@keyframes quote-in {
+  from { opacity: 0; transform: translateY(7px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .chat-bar textarea {
+  width: 100%;
+  min-width: 0;
   min-height: 42px;
   max-height: 130px;
   border: 0;
+  box-sizing: border-box;
   resize: none;
   color: var(--text);
   background: transparent;
   padding: 10px 4px;
   outline: none;
+  overflow-y: auto;
+}
+
+.plus-button {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #d8d8de;
+  cursor: pointer;
+  transition: background .18s ease, transform .18s ease;
+}
+
+.plus-button:hover,
+.plus-button.active {
+  background: #44454a;
+}
+
+.plus-button.active {
+  transform: rotate(45deg);
+}
+
+.plus-button svg,
+.plus-menu-item svg {
+  width: 22px;
+  height: 22px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+
+.plus-menu {
+  position: absolute;
+  left: 6px;
+  bottom: 68px;
+  width: min(320px, calc(100vw - 132px));
+  padding: 10px;
+  border: 1px solid #414247;
+  border-radius: 14px;
+  background: rgba(48, 48, 51, .96);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, .38);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px) scale(.98);
+  transform-origin: bottom left;
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 8;
+}
+
+.plus-menu.open {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.plus-menu-item {
+  width: 100%;
+  min-height: 42px;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #ececf1;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  padding: 8px 10px;
+  transition: background .16s ease, color .16s ease;
+}
+
+.plus-menu-item:hover,
+.plus-menu-item.active {
+  background: #414247;
+}
+
+.plus-menu-item.active {
+  color: var(--main);
+}
+
+.plus-menu-item.muted {
+  color: #9a9aa2;
+}
+
+.plus-menu-line {
+  height: 1px;
+  margin: 8px 6px;
+  background: #4b4c51;
+}
+
+.selection-popover {
+  position: fixed;
+  z-index: 30;
+  min-width: 150px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #3d3e43;
+  border-radius: 10px;
+  background: rgba(35, 35, 38, .97);
+  color: #f2f2f5;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .38);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(7px) scale(.98);
+  transition: opacity .16s ease, transform .16s ease, background .16s ease;
+}
+
+.selection-popover.show {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.selection-popover:hover {
+  background: #313238;
+}
+
+.selection-popover .popover-mark {
+  color: var(--main);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.selection-popover .popover-label {
+  color: #f2f2f5;
+  font-size: 14px;
+  line-height: 1;
 }
 
 .round-button {
@@ -488,6 +782,17 @@ h1 {
   background: #4a4a4f;
   color: white;
   cursor: pointer;
+}
+
+.round-button.stop-mode {
+  background: #4a4a4f;
+}
+
+.stop-square {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: #d9d9df;
 }
 
 .round-button svg {

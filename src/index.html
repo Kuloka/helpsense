@@ -54,6 +54,24 @@
           </div>
           <div class="chat-log" id="chatLog"></div>
           <div class="chat-bar">
+            <button class="plus-button" id="chatPlus" type="button" title="More" aria-label="More">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg>
+            </button>
+            <div class="plus-menu" id="plusMenu">
+              <button class="plus-menu-item" id="deepThink" type="button">
+                <svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M8 14c-1.8-1.2-3-3.2-3-5.5a7 7 0 0 1 14 0c0 2.3-1.2 4.3-3 5.5-.8.6-1 1.2-1 2H9c0-.8-.2-1.4-1-2z"></path></svg>
+                <span data-i18n="menu_deep">Think longer</span>
+              </button>
+              <button class="plus-menu-item" id="deepResearch" type="button">
+                <svg viewBox="0 0 24 24"><path d="M4 15l7-7 5 5 4-4"></path><path d="M14 9h6v6"></path><path d="M5 20h14"></path></svg>
+                <span data-i18n="menu_research">Deep research</span>
+              </button>
+            </div>
+            <div class="selected-quote" id="selectedQuote">
+              <span class="quote-arrow">↪</span>
+              <span class="quote-text" id="selectedQuoteText"></span>
+              <button class="quote-remove" id="clearSelectedQuote" type="button" aria-label="Remove selected text">×</button>
+            </div>
             <textarea id="chatInput" rows="1" placeholder="Ask ChatGPT" data-i18n-placeholder="chat_placeholder"></textarea>
             <button class="round-button" id="sendChat" type="button" title="Send">
               <svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"></path></svg>
@@ -175,6 +193,9 @@
       </section>
     </main>
 
+    <button class="selection-popover" id="selectionPopover" type="button">
+      <span class="popover-mark">”</span> <span class="popover-label" data-i18n="ask_chatgpt_lite">Ask ChatGPT lite</span>
+    </button>
     <div class="watermark" id="watermark"></div>
     <div class="toast" id="toast">Copied</div>
 

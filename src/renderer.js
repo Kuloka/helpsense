@@ -19,8 +19,11 @@ const THEMES = [
 
 const DEFAULTS = {
   chatInput: '',
+  selectedQuote: '',
   chatAnswer: '',
   chatMessages: [],
+  deepThinking: false,
+  deepResearch: false,
   activeSavedId: null,
   translateInput: '',
   translateOutput: '',
@@ -43,6 +46,14 @@ const status = document.getElementById('status');
 const themeGrid = document.getElementById('themeGrid');
 const chatInput = document.getElementById('chatInput');
 const chatLog = document.getElementById('chatLog');
+const chatPlus = document.getElementById('chatPlus');
+const plusMenu = document.getElementById('plusMenu');
+const deepThink = document.getElementById('deepThink');
+const deepResearch = document.getElementById('deepResearch');
+const selectionPopover = document.getElementById('selectionPopover');
+const selectedQuote = document.getElementById('selectedQuote');
+const selectedQuoteText = document.getElementById('selectedQuoteText');
+const clearSelectedQuote = document.getElementById('clearSelectedQuote');
 const toast = document.getElementById('toast');
 const translateInput = document.getElementById('translateInput');
 const translateOutput = document.getElementById('translateOutput');
@@ -58,6 +69,8 @@ const languageSelect = document.getElementById('languageSelect');
 let translateRequestId = 0;
 let typewriterTimer = null;
 let translateTypeTimer = null;
+let typingBubbleElement = null;
+let userScrolledChat = false;
 
 const I18N = {
   en: {
@@ -98,7 +111,10 @@ const I18N = {
     pos_top_left: 'Top Left',
     pos_top_right: 'Top Right',
     pos_bottom_left: 'Bottom Left',
-    pos_bottom_right: 'Bottom Right'
+    pos_bottom_right: 'Bottom Right',
+    menu_deep: 'Think longer',
+    menu_research: 'Deep research',
+    ask_chatgpt_lite: 'Ask ChatGPT lite'
   },
   ru: {
     chat_title: 'ChatGPT lite',
@@ -138,7 +154,10 @@ const I18N = {
     pos_top_left: 'Сверху слева',
     pos_top_right: 'Сверху справа',
     pos_bottom_left: 'Снизу слева',
-    pos_bottom_right: 'Снизу справа'
+    pos_bottom_right: 'Снизу справа',
+    menu_deep: 'Думай дольше',
+    menu_research: 'Глубокое исследование',
+    ask_chatgpt_lite: 'Спросить ChatGPT lite'
   }
 };
 
@@ -224,22 +243,93 @@ function escapeHtml(value) {
     .replaceAll("'", '&#039;');
 }
 
+function formatInline(value) {
+  return escapeHtml(value)
+    .replace(/==(.+?)==/g, '$1')
+    .replace(/\*\*(.+?)\*\*/g, '$1');
+}
+
+function assistantMarkdown(text) {
+  const lines = String(text || '').split(/\r?\n/);
+  const html = [];
+  let list = null;
+
+  function closeList() {
+    if (!list) return;
+    html.push(`</${list}>`);
+    list = null;
+  }
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      closeList();
+      return;
+    }
+
+    const bullet = trimmed.match(/^(?:[-*•])\s+(.+)$/);
+    if (bullet) {
+      if (list !== 'ul') {
+        closeList();
+        html.push('<ul>');
+        list = 'ul';
+      }
+      html.push(`<li>${formatInline(bullet[1])}</li>`);
+      return;
+    }
+
+    const numbered = trimmed.match(/^(\d+)[.)]\s+(.+)$/);
+    if (numbered) {
+      if (list !== 'ol') {
+        closeList();
+        html.push('<ol>');
+        list = 'ol';
+      }
+      html.push(`<li>${formatInline(numbered[2])}</li>`);
+      return;
+    }
+
+    closeList();
+    html.push(`<p>${formatInline(trimmed)}</p>`);
+  });
+
+  closeList();
+  return html.join('');
+}
+
 function typeText(target, text, onDone, speed = 32) {
   clearInterval(typewriterTimer);
-  target.innerHTML = '<span class="type-cursor"></span>';
+  typingBubbleElement = target;
+  state.isTyping = true;
+  renderSendButton();
+  target.textContent = '';
   target.classList.add('typing-text');
   let index = 0;
   typewriterTimer = setInterval(() => {
     index += 1;
-    target.innerHTML = `${escapeHtml(text.slice(0, index))}<span class="type-cursor"></span>`;
-    chatLog.scrollTop = chatLog.scrollHeight;
+    target.textContent = text.slice(0, index);
+    if (!userScrolledChat) chatLog.scrollTop = chatLog.scrollHeight;
     if (index >= text.length) {
       clearInterval(typewriterTimer);
       target.textContent = text;
       target.classList.remove('typing-text');
+      state.isTyping = false;
+      typingBubbleElement = null;
+      renderSendButton();
       onDone?.();
     }
   }, speed);
+}
+
+function stopTyping() {
+  if (!state.isTyping) return false;
+  clearInterval(typewriterTimer);
+  typingBubbleElement?.classList.remove('typing-text');
+  state.isTyping = false;
+  typingBubbleElement = null;
+  renderSendButton();
+  setStatus('Stopped');
+  return true;
 }
 
 function typeTextarea(target, text, speed = 30) {
@@ -268,7 +358,12 @@ async function runAi(payload) {
 function chatContext() {
   return state.chatMessages
     .slice(-8)
-    .map(message => `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text}`)
+    .map(message => {
+      if (message.role === 'user' && message.quote) {
+        return `Selected text: "${message.quote}"\nUser question about selected text: ${message.text || 'Explain it.'}`;
+      }
+      return `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text || ''}`;
+    })
     .join('\n');
 }
 
@@ -341,7 +436,7 @@ function renderChat() {
     }));
     return;
   }
-  messages.forEach(message => chatLog.appendChild(messageBubble(message.role, message.text)));
+  messages.forEach(message => chatLog.appendChild(messageBubble(message)));
   if (state.isThinking) chatLog.appendChild(typingBubble());
   const last = messages[messages.length - 1];
   if (!state.isThinking && last?.role === 'assistant') {
@@ -350,15 +445,39 @@ function renderChat() {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
-function messageBubble(type, text) {
+function messageBubble(messageOrType, text = '') {
+  const message = typeof messageOrType === 'object'
+    ? messageOrType
+    : { role: messageOrType, text };
+
+  if (message.role === 'user' && message.quote) {
+    const turn = document.createElement('div');
+    turn.className = 'user-turn';
+    const quote = document.createElement('div');
+    quote.className = 'sent-quote';
+    quote.innerHTML = `<span class="quote-arrow">↪</span><span>${escapeHtml(message.quote)}</span>`;
+    const bubble = messageBubble({ role: 'user', text: message.text });
+    turn.append(quote, bubble);
+    return turn;
+  }
+
   const bubble = document.createElement('div');
-  bubble.className = `message ${type}`;
-  bubble.textContent = text;
+  bubble.className = `message ${message.role}`;
+  if (message.text) {
+    const content = document.createElement('div');
+    if (message.role === 'assistant') {
+      content.className = 'assistant-content';
+      content.innerHTML = assistantMarkdown(message.text);
+    } else {
+      content.textContent = message.text;
+    }
+    bubble.appendChild(content);
+  }
   return bubble;
 }
 
 function animatedAssistantBubble(text) {
-  const bubble = messageBubble('assistant', '');
+  const bubble = messageBubble({ role: 'assistant', text: '' });
   typeText(bubble, text, () => {
     renderChat();
   });
@@ -416,6 +535,7 @@ function renderSaved() {
           { role: 'assistant', text: item.answer || '' }
         ].filter(message => message.text);
       state.chatInput = '';
+      state.selectedQuote = '';
       state.chatAnswer = state.chatMessages.filter(message => message.role === 'assistant').slice(-1)[0]?.text || '';
       state.activeSavedId = item.id || item.date;
       chatInput.value = '';
@@ -455,14 +575,39 @@ function saveCurrentChat() {
 
 function render() {
   chatInput.value = state.chatInput;
+  renderSelectedQuote();
   translateInput.value = state.translateInput;
   translateOutput.value = state.translateOutput;
   fromLang.value = state.fromLang;
   toLang.value = state.toLang;
+  renderComposerModes();
+  renderSendButton();
   renderChat();
   renderSaved();
   renderWatermark();
   applyLanguage();
+}
+
+function renderComposerModes() {
+  deepThink.classList.toggle('active', Boolean(state.deepThinking));
+  deepResearch.classList.toggle('active', Boolean(state.deepResearch));
+}
+
+function renderSendButton() {
+  const button = document.getElementById('sendChat');
+  button.classList.toggle('stop-mode', Boolean(state.isTyping));
+  button.title = state.isTyping ? 'Stop' : 'Send';
+  button.setAttribute('aria-label', state.isTyping ? 'Stop' : 'Send');
+  button.innerHTML = state.isTyping
+    ? '<span class="stop-square" aria-hidden="true"></span>'
+    : '<svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"></path></svg>';
+}
+
+function renderSelectedQuote() {
+  const hasQuote = Boolean(state.selectedQuote);
+  selectedQuote.classList.toggle('show', hasQuote);
+  selectedQuote.classList.remove('active');
+  selectedQuoteText.textContent = state.selectedQuote || '';
 }
 
 document.querySelectorAll('.tab').forEach(button => {
@@ -491,6 +636,97 @@ chatInput.addEventListener('keydown', event => {
     event.preventDefault();
     document.getElementById('sendChat').click();
   }
+});
+
+chatLog.addEventListener('scroll', () => {
+  const distanceFromBottom = chatLog.scrollHeight - chatLog.scrollTop - chatLog.clientHeight;
+  userScrolledChat = distanceFromBottom > 80;
+});
+
+chatPlus.addEventListener('click', event => {
+  event.stopPropagation();
+  const open = !plusMenu.classList.contains('open');
+  plusMenu.classList.toggle('open', open);
+  chatPlus.classList.toggle('active', open);
+});
+
+document.addEventListener('click', event => {
+  if (!plusMenu.contains(event.target) && event.target !== chatPlus) {
+    plusMenu.classList.remove('open');
+    chatPlus.classList.remove('active');
+  }
+});
+
+deepThink.addEventListener('click', () => {
+  state.deepThinking = !state.deepThinking;
+  save();
+  renderComposerModes();
+  setStatus(state.deepThinking ? 'Think longer enabled' : 'Think longer disabled');
+});
+
+deepResearch.addEventListener('click', () => {
+  state.deepResearch = !state.deepResearch;
+  state.deepThinking = state.deepResearch || state.deepThinking;
+  save();
+  renderComposerModes();
+  setStatus(state.deepResearch ? 'Deep research enabled' : 'Deep research disabled');
+});
+
+function selectedTextInfo() {
+  const selection = window.getSelection();
+  const text = selection?.toString().trim() || '';
+  if (!text) return null;
+  const range = selection.getRangeAt(0);
+  const rect = range.getBoundingClientRect();
+  if (!rect.width && !rect.height) return null;
+  return { text, rect };
+}
+
+document.addEventListener('selectionchange', () => {
+  clearTimeout(document.selectionTimer);
+  document.selectionTimer = setTimeout(() => {
+    const info = selectedTextInfo();
+    if (!info || selectionPopover.contains(document.activeElement)) {
+      selectionPopover.classList.remove('show');
+      return;
+    }
+
+    selectionPopover.dataset.text = info.text.slice(0, 1800);
+    selectionPopover.style.left = `${Math.min(window.innerWidth - 180, Math.max(10, info.rect.left + info.rect.width / 2 - 76))}px`;
+    selectionPopover.style.top = `${Math.max(8, info.rect.top - 48)}px`;
+    selectionPopover.classList.add('show');
+  }, 80);
+});
+
+selectionPopover.addEventListener('mousedown', event => {
+  event.preventDefault();
+});
+
+selectionPopover.addEventListener('click', () => {
+  const text = selectionPopover.dataset.text || '';
+  if (!text) return;
+  state.selectedQuote = text;
+  save();
+  renderSelectedQuote();
+  document.querySelector('[data-tab="chat"]').click();
+  chatInput.focus();
+  selectionPopover.classList.remove('show');
+  setStatus('Selected text added to ChatGPT lite');
+});
+
+clearSelectedQuote.addEventListener('click', () => {
+  state.selectedQuote = '';
+  save();
+  renderSelectedQuote();
+});
+
+selectedQuote.addEventListener('click', event => {
+  if (event.target === clearSelectedQuote) return;
+  selectedQuote.classList.add('active');
+  clearTimeout(selectedQuote.activeTimer);
+  selectedQuote.activeTimer = setTimeout(() => {
+    selectedQuote.classList.remove('active');
+  }, 3000);
 });
 
 translateInput.addEventListener('input', event => {
@@ -553,16 +789,29 @@ watermarkToggle.addEventListener('click', () => {
 });
 
 document.getElementById('sendChat').addEventListener('click', async () => {
-  if (!chatInput.value.trim()) return setStatus('Question is empty');
-  const question = chatInput.value;
+  if (stopTyping()) return;
+  if (!chatInput.value.trim() && !state.selectedQuote) return setStatus('Question is empty');
+  const question = chatInput.value.trim() || (state.language === 'ru' ? 'Объясни выделенный фрагмент.' : 'Explain the selected text.');
+  const selectedQuoteText = state.selectedQuote;
   state.chatInput = '';
+  state.selectedQuote = '';
   state.chatAnswer = '';
-  state.chatMessages.push({ role: 'user', text: question });
+  state.chatMessages.push({
+    role: 'user',
+    text: question,
+    quote: selectedQuoteText || ''
+  });
   chatInput.value = '';
+  renderSelectedQuote();
   state.isThinking = true;
   renderChat();
   setStatus('ChatGPT is thinking...');
-  const response = await runAi({ task: 'chat', text: chatContext() });
+  const response = await runAi({
+    task: 'chat',
+    text: chatContext(),
+    deepThinking: state.deepThinking,
+    deepResearch: state.deepResearch
+  });
   state.isThinking = false;
   if (!response?.ok) {
     renderChat();
@@ -579,7 +828,8 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   }
   save();
   chatLog.replaceChildren();
-  state.chatMessages.slice(0, -1).forEach(message => chatLog.appendChild(messageBubble(message.role, message.text)));
+  userScrolledChat = false;
+  state.chatMessages.slice(0, -1).forEach(message => chatLog.appendChild(messageBubble(message)));
   chatLog.appendChild(animatedAssistantBubble(response.text));
   setStatus('ChatGPT answered');
 });
