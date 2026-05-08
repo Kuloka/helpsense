@@ -35,14 +35,19 @@ function modePrompt(payload) {
 }
 
 function behaviorPrompt(payload) {
-  if (payload.messageClass === 'casual_chat') {
+  if (isCasualClass(payload.messageClass)) {
     return [
       'Fast conversational mode.',
-      'Reply quickly and naturally.',
+      'Reply quickly and naturally like a modern person in chat.',
       'Do not overthink short messages.',
-      'Keep the answer short unless the user asks for detail.',
+      'Keep one-word, meme, slang, and emotional replies short.',
       'Use the previous conversation to infer tone and intent.',
-      'Casual replies may be warm, direct, and lightly informal.'
+      'Casual replies may be warm, direct, and lightly informal.',
+      'Use a fitting emoji sometimes in casual chat when it feels natural.',
+      'Do not sound like customer support, a FAQ assistant, a poet, or a corporate bot.',
+      'Do not invent weird pseudo-clever phrases just to sound smart.',
+      'Never append notes about why you answered that way.',
+      'If the user sends a random word, react naturally and keep the flow moving.'
     ].join('\n');
   }
 
@@ -55,6 +60,10 @@ function behaviorPrompt(payload) {
   }
 
   return 'Balanced mode: answer directly, avoid unnecessary caveats, and keep momentum in the conversation.';
+}
+
+function isCasualClass(messageClass) {
+  return ['casual_chat', 'casual_short', 'meme', 'slang', 'emotional_reaction'].includes(messageClass);
 }
 
 function buildInstructions(payload) {

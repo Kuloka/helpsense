@@ -361,10 +361,66 @@ h1 {
 
 .empty-chat {
   height: 100%;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   color: #777;
   font-size: 18px;
+  text-align: center;
+}
+
+.empty-chat p {
+  margin: 0;
+}
+
+.empty-chat strong {
+  color: #ffffff;
+  font-size: 18px;
+  letter-spacing: 3px;
+  line-height: 1;
+  text-shadow: 0 0 12px rgba(157, 255, 71, .42);
+}
+
+.lite-empty-logo {
+  position: relative;
+  width: 78px;
+  height: 78px;
+  margin-bottom: 2px;
+  filter: drop-shadow(0 0 12px rgba(157, 255, 71, .45));
+}
+
+.lite-empty-logo span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 64px;
+  height: 24px;
+  border: 3px solid transparent;
+  border-left-color: #ffffff;
+  border-right-color: var(--main);
+  border-radius: 50%;
+  transform-origin: center;
+  box-shadow: 0 0 12px rgba(157, 255, 71, .24);
+}
+
+.lite-empty-logo span:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg); }
+.lite-empty-logo span:nth-child(2) { transform: translate(-50%, -50%) rotate(45deg); }
+.lite-empty-logo span:nth-child(3) { transform: translate(-50%, -50%) rotate(90deg); }
+.lite-empty-logo span:nth-child(4) { transform: translate(-50%, -50%) rotate(135deg); }
+
+.lite-empty-logo::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--main);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 18px var(--main);
 }
 
 .message {

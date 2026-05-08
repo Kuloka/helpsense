@@ -22,6 +22,7 @@ function normalizeAiPayload(payload) {
     text: toSafeString(payload?.text, maxText),
     from: toSafeString(payload?.from || 'auto', 16),
     to: toSafeString(payload?.to || 'en', 16),
+    language: toSafeString(payload?.language || '', 16),
     deepThinking: Boolean(payload?.deepThinking),
     deepResearch: Boolean(payload?.deepResearch),
     stream: Boolean(payload?.stream)

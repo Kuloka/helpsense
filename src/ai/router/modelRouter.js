@@ -2,7 +2,7 @@ function routeModel(payload) {
   if (payload.deepResearch) return 'gpt-5.2';
   if (payload.task === 'translate' || payload.task?.startsWith('translate_')) return 'gpt-5.4-mini';
   if (payload.task === 'summarize' || payload.task === 'shorten') return 'gpt-5.4-mini';
-  if (payload.messageClass === 'casual_chat') return 'gpt-5.4-mini';
+  if (isCasualClass(payload.messageClass)) return 'gpt-5.4-mini';
   if (payload.messageClass === 'math' || payload.messageClass === 'coding') return 'gpt-5.4';
   if (payload.deepThinking) return 'gpt-5.2';
   return 'gpt-5.4';
@@ -10,7 +10,7 @@ function routeModel(payload) {
 
 function modelSettings(payload) {
   const messageClass = payload.messageClass || 'serious_question';
-  if (messageClass === 'casual_chat') {
+  if (isCasualClass(messageClass)) {
     return {
       temperature: 0.8,
       maxOutputTokens: 420,
@@ -29,6 +29,10 @@ function modelSettings(payload) {
     maxOutputTokens: 900,
     behavior: 'balanced'
   };
+}
+
+function isCasualClass(messageClass) {
+  return ['casual_chat', 'casual_short', 'meme', 'slang', 'emotional_reaction'].includes(messageClass);
 }
 
 module.exports = {

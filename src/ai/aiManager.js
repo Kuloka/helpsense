@@ -2,6 +2,7 @@ const { BASE_SYSTEM_PROMPT, SAFETY_PROMPT } = require('./prompts/basePrompt');
 const { buildInstructions } = require('./prompts/taskPrompts');
 const { buildContext } = require('./memory/conversationMemory');
 const { SemanticMemory } = require('./memory/semanticMemory');
+const { localTranslate } = require('./dictionaries/localDictionary');
 const { quickCasualResponse } = require('./router/casualResponder');
 const { classifyMessage } = require('./router/messageClassifier');
 const { modelSettings, routeModel } = require('./router/modelRouter');
@@ -30,11 +31,16 @@ class AIManager {
 
   async generate(payload) {
     payload = this.preparePayload(payload);
+    const dictionaryAnswer = localTranslate(payload);
+    if (dictionaryAnswer) {
+      return { ok: true, text: cleanAssistantText(dictionaryAnswer), provider: 'local-dictionary', confidence: 'high' };
+    }
+
     if (payload.task === 'chat') {
       const localAnswer = answerKnownPattern(payload.text);
-      if (localAnswer) return { ok: true, text: localAnswer, provider: 'local-math', confidence: 'high' };
+      if (localAnswer) return { ok: true, text: cleanAssistantText(localAnswer), provider: 'local-math', confidence: 'high' };
       const casualAnswer = quickCasualResponse(payload);
-      if (casualAnswer) return { ok: true, text: casualAnswer, provider: 'local-casual', confidence: 'medium' };
+      if (casualAnswer) return { ok: true, text: cleanAssistantText(casualAnswer), provider: 'local-casual', confidence: 'medium' };
     }
 
     const cacheKey = cacheKeyFor(payload);
@@ -48,16 +54,25 @@ class AIManager {
 
   async stream(payload, onChunk) {
     payload = this.preparePayload(payload);
+    const dictionaryAnswer = localTranslate(payload);
+    if (dictionaryAnswer) {
+      const clean = cleanAssistantText(dictionaryAnswer);
+      onChunk?.(clean);
+      return { ok: true, text: clean, provider: 'local-dictionary', confidence: 'high' };
+    }
+
     if (payload.task === 'chat') {
       const localAnswer = answerKnownPattern(payload.text);
       if (localAnswer) {
-        onChunk?.(localAnswer);
-        return { ok: true, text: localAnswer, provider: 'local-math', confidence: 'high' };
+        const clean = cleanAssistantText(localAnswer);
+        onChunk?.(clean);
+        return { ok: true, text: clean, provider: 'local-math', confidence: 'high' };
       }
       const casualAnswer = quickCasualResponse(payload);
       if (casualAnswer) {
-        onChunk?.(casualAnswer);
-        return { ok: true, text: casualAnswer, provider: 'local-casual', confidence: 'medium' };
+        const clean = cleanAssistantText(casualAnswer);
+        onChunk?.(clean);
+        return { ok: true, text: clean, provider: 'local-casual', confidence: 'medium' };
       }
     }
 
@@ -117,6 +132,7 @@ class AIManager {
       behavior: settings.behavior,
       instructions: [
         BASE_SYSTEM_PROMPT,
+        payload.language ? `If the latest message has no clear language, answer in the UI language: ${payload.language}.` : '',
         SAFETY_PROMPT,
         taskInstructions
       ].filter(Boolean).join('\n'),
@@ -150,7 +166,7 @@ class AIManager {
         : [this.pollinations, this.ollama];
     }
 
-    if (payload.messageClass === 'casual_chat') {
+    if (isCasualClass(payload.messageClass)) {
       return this.openai.hasApiKey()
         ? [this.openai, this.pollinations, this.ollama]
         : [this.pollinations, this.ollama];
@@ -165,7 +181,7 @@ class AIManager {
     let lastError = { ok: false, error: 'AI is unavailable.' };
     for (const provider of providers) {
       const result = await retry(() => runProvider(provider), 2);
-      if (result?.ok) return result;
+      if (result?.ok) return { ...result, text: cleanAssistantText(result.text) };
       lastError = result || lastError;
     }
     return lastError;
@@ -194,6 +210,17 @@ function cacheKeyFor(payload) {
   });
 }
 
+function cleanAssistantText(text) {
+  return String(text || '')
+    .replace(/(?:\n|\r|\s)*\(?\s*note\s*:\s*[\s\S]*$/i, '')
+    .replace(/(?:\n|\r|\s)*\(?\s*примечание\s*:\s*[\s\S]*$/i, '')
+    .trim();
+}
+
 module.exports = {
   AIManager
 };
+
+function isCasualClass(messageClass) {
+  return ['casual_chat', 'casual_short', 'meme', 'slang', 'emotional_reaction'].includes(messageClass);
+}

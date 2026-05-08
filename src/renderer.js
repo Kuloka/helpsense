@@ -84,8 +84,8 @@ let translateAutoTimer = null;
 
 const I18N = {
   en: {
-    chat_title: 'ChatGPT lite',
-    chat_placeholder: 'Ask ChatGPT',
+    chat_title: 'Lite',
+    chat_placeholder: 'Ask Lite',
     empty_chat: 'Ask something below. The answer will appear here.',
     lang_auto: 'Detect language',
     lang_ru: 'Русский',
@@ -114,7 +114,7 @@ const I18N = {
     ai_mode: 'AI Mode',
     ai_info: 'Online no-key mode is enabled. Local Ollama is used automatically when available.',
     reset_settings: 'Reset Settings',
-    about_desc: 'Desktop helper with ChatGPT, translator, themes and watermark.',
+    about_desc: 'Desktop helper with Lite, translator, themes and watermark.',
     saved_empty: 'Saved chats appear here.',
     wm_solid: 'Solid',
     wm_minimal: 'Minimal',
@@ -124,11 +124,11 @@ const I18N = {
     pos_bottom_right: 'Bottom Right',
     menu_deep: 'Think longer',
     menu_research: 'Deep research',
-    ask_chatgpt_lite: 'Ask ChatGPT lite'
+    ask_chatgpt_lite: 'Ask Lite'
   },
   ru: {
-    chat_title: 'ChatGPT lite',
-    chat_placeholder: 'Спросите ChatGPT',
+    chat_title: 'Lite',
+    chat_placeholder: 'Спросить у Lite',
     empty_chat: 'Спросите что-нибудь внизу. Ответ появится здесь.',
     lang_auto: 'Определить язык',
     lang_ru: 'Русский',
@@ -157,7 +157,7 @@ const I18N = {
     ai_mode: 'Режим ИИ',
     ai_info: 'Онлайн-режим без ключа включён. Локальный Ollama используется автоматически, если доступен.',
     reset_settings: 'Сбросить настройки',
-    about_desc: 'Помощник с ChatGPT, переводчиком, темами и ватермаркой.',
+    about_desc: 'Помощник с Lite, переводчиком, темами и ватермаркой.',
     saved_empty: 'Сохранённые чаты появятся здесь.',
     wm_solid: 'Обычный',
     wm_minimal: 'Минималистичный',
@@ -167,7 +167,7 @@ const I18N = {
     pos_bottom_right: 'Снизу справа',
     menu_deep: 'Думай дольше',
     menu_research: 'Глубокое исследование',
-    ask_chatgpt_lite: 'Спросить ChatGPT lite'
+    ask_chatgpt_lite: 'Спросить у Lite'
   }
 };
 
@@ -305,6 +305,13 @@ function assistantMarkdown(text) {
 
   closeList();
   return html.join('');
+}
+
+function cleanAssistantText(text) {
+  return String(text || '')
+    .replace(/(?:\n|\r|\s)*\(?\s*note\s*:\s*[\s\S]*$/i, '')
+    .replace(/(?:\n|\r|\s)*\(?\s*примечание\s*:\s*[\s\S]*$/i, '')
+    .trim();
 }
 
 function typeText(target, text, onDone, speed = 32) {
@@ -458,6 +465,7 @@ function appendStreamChunk(requestId, chunk) {
   if (activeChatRequestId !== requestId) return;
   ensureStreamBubble();
   activeStreamFullText += String(chunk || '');
+  activeStreamFullText = cleanAssistantText(activeStreamFullText);
   activeStreamQueue += String(chunk || '');
   startStreamTypewriter();
 }
@@ -485,13 +493,13 @@ function startStreamTypewriter() {
     const step = 1;
     activeStreamText += activeStreamQueue.slice(0, step);
     activeStreamQueue = activeStreamQueue.slice(step);
-    activeStreamBubble.textContent = activeStreamText;
+    activeStreamBubble.textContent = cleanAssistantText(activeStreamText);
     if (!userScrolledChat) chatLog.scrollTop = chatLog.scrollHeight;
   }, 30);
 }
 
 function flushStreamTypewriter() {
-  activeStreamText = activeStreamFullText || activeStreamText;
+  activeStreamText = cleanAssistantText(activeStreamFullText || activeStreamText);
   activeStreamQueue = '';
   if (activeStreamBubble) activeStreamBubble.textContent = activeStreamText;
 }
@@ -584,10 +592,7 @@ function renderChat() {
   chatLog.replaceChildren();
   const messages = state.chatMessages;
   if (!messages.length) {
-    chatLog.appendChild(Object.assign(document.createElement('div'), {
-      className: 'empty-chat',
-      textContent: t('empty_chat')
-    }));
+    chatLog.appendChild(emptyChatNode());
     return;
   }
   messages.forEach(message => chatLog.appendChild(messageBubble(message)));
@@ -597,6 +602,20 @@ function renderChat() {
     chatLog.appendChild(copyAnswerButton());
   }
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function emptyChatNode() {
+  const empty = document.createElement('div');
+  empty.className = 'empty-chat';
+  const logo = document.createElement('div');
+  logo.className = 'lite-empty-logo';
+  logo.innerHTML = '<span></span><span></span><span></span><span></span>';
+  const name = document.createElement('strong');
+  name.textContent = 'LITE';
+  const text = document.createElement('p');
+  text.textContent = t('empty_chat');
+  empty.append(logo, name, text);
+  return empty;
 }
 
 function messageBubble(messageOrType, text = '') {
@@ -898,7 +917,7 @@ selectionPopover.addEventListener('click', () => {
   document.querySelector('[data-tab="chat"]').click();
   chatInput.focus();
   selectionPopover.classList.remove('show');
-  setStatus('Selected text added to ChatGPT lite');
+  setStatus('Selected text added to Lite');
 });
 
 clearSelectedQuote.addEventListener('click', () => {
@@ -994,11 +1013,12 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   activeStreamFullText = '';
   activeStreamQueue = '';
   activeStreamBubble = null;
-  setStatus('ChatGPT is thinking...');
+  setStatus('Lite is thinking...');
   const response = await streamAi({
     requestId,
     task: 'chat',
     text: chatContext(),
+    language: state.language,
     deepThinking: state.deepThinking,
     deepResearch: state.deepResearch
   }, chunk => appendStreamChunk(requestId, chunk));
@@ -1014,9 +1034,9 @@ document.getElementById('sendChat').addEventListener('click', async () => {
     activeStreamFullText = '';
     activeStreamQueue = '';
     renderChat();
-    return setStatus(response?.error || 'ChatGPT failed');
+    return setStatus(response?.error || 'Lite failed');
   }
-  const answer = response.text || activeStreamFullText || activeStreamText;
+  const answer = cleanAssistantText(response.text || activeStreamFullText || activeStreamText);
   activeStreamText = '';
   activeStreamFullText = '';
   activeStreamQueue = '';
@@ -1031,7 +1051,7 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   }
   save();
   renderChat();
-  setStatus('ChatGPT answered');
+  setStatus('Lite answered');
 });
 
 document.getElementById('saveChat').addEventListener('click', saveCurrentChat);
@@ -1077,6 +1097,7 @@ document.getElementById('translateAi').addEventListener('click', async () => {
     requestId: requestToken,
     task: 'translate',
     text: state.translateInput,
+    language: state.language,
     from: fromLang.value,
     to: toLang.value
   });

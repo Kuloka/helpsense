@@ -19,7 +19,7 @@
         <span class="brand-white">H</span><span class="brand-green">S</span>
       </button>
       <nav class="tabs" aria-label="Sections">
-        <button class="tab active" type="button" data-tab="chat" title="ChatGPT" aria-label="ChatGPT">
+        <button class="tab active" type="button" data-tab="chat" title="Lite" aria-label="Lite">
           <span class="chip-icon" aria-hidden="true"></span>
         </button>
         <button class="tab" type="button" data-tab="translate" title="Translator" aria-label="Translator">
@@ -48,7 +48,7 @@
       <section class="view active" id="view-chat">
         <section class="chat-screen">
           <div class="chat-top">
-            <span data-i18n="chat_title">ChatGPT lite</span>
+            <span data-i18n="chat_title">Lite</span>
             <div class="chat-actions">
               <button class="icon-button" id="saveChat" type="button" title="Save chat" aria-label="Save chat">
                 <svg viewBox="0 0 24 24"><path d="M5 4h12l2 2v14H5z"></path><path d="M8 4v6h8V4M8 20v-7h8v7"></path></svg>
@@ -78,7 +78,7 @@
               <span class="quote-text" id="selectedQuoteText"></span>
               <button class="quote-remove" id="clearSelectedQuote" type="button" aria-label="Remove selected text">×</button>
             </div>
-            <textarea id="chatInput" rows="1" placeholder="Ask ChatGPT" data-i18n-placeholder="chat_placeholder"></textarea>
+            <textarea id="chatInput" rows="1" placeholder="Ask Lite" data-i18n-placeholder="chat_placeholder"></textarea>
             <button class="round-button" id="sendChat" type="button" title="Send">
               <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
             </button>
@@ -197,7 +197,7 @@
       <section class="view" id="view-about">
         <section class="about-panel">
           <div class="about-logo"><span>help</span><strong>sense</strong></div>
-          <p data-i18n="about_desc">Desktop helper with ChatGPT, translator, themes and watermark.</p>
+          <p data-i18n="about_desc">Desktop helper with Lite, translator, themes and watermark.</p>
           <p>Helper for computers user</p>
           <p class="muted">by kuloka</p>
         </section>
@@ -205,7 +205,7 @@
     </main>
 
     <button class="selection-popover" id="selectionPopover" type="button">
-      <span class="popover-mark">”</span> <span class="popover-label" data-i18n="ask_chatgpt_lite">Ask ChatGPT lite</span>
+      <span class="popover-mark">”</span> <span class="popover-label" data-i18n="ask_chatgpt_lite">Ask Lite</span>
     </button>
     <div class="watermark" id="watermark"></div>
     <div class="toast" id="toast">Copied</div>
