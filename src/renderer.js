@@ -308,10 +308,39 @@ function assistantMarkdown(text) {
 }
 
 function cleanAssistantText(text) {
+  const raw = String(text || '').trim();
+  const jsonAnswer = extractUserFacingJsonAnswer(raw);
+  if (jsonAnswer !== null) return jsonAnswer;
+  if (/^\s*```(?:json)?\s*\{[\s\S]*?(?:"reasoning"|"analysis"|"role")/i.test(raw)) {
+    const fenced = raw.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '');
+    const fencedAnswer = extractUserFacingJsonAnswer(fenced);
+    if (fencedAnswer !== null) return fencedAnswer;
+  }
+  if (/^\s*\{[\s\S]*?(?:"reasoning"|"analysis"|"role")/i.test(raw)) return '';
   return String(text || '')
     .replace(/(?:\n|\r|\s)*\(?\s*note\s*:\s*[\s\S]*$/i, '')
     .replace(/(?:\n|\r|\s)*\(?\s*примечание\s*:\s*[\s\S]*$/i, '')
     .trim();
+}
+
+function extractUserFacingJsonAnswer(raw) {
+  try {
+    const parsed = JSON.parse(String(raw || '').trim());
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (!('reasoning' in parsed) && !('analysis' in parsed) && !('role' in parsed)) return null;
+    const candidates = [
+      parsed.final,
+      parsed.answer,
+      parsed.content,
+      parsed.text,
+      parsed.message?.content,
+      Array.isArray(parsed.messages) ? parsed.messages.at(-1)?.content : ''
+    ];
+    const answer = candidates.find(value => typeof value === 'string' && value.trim());
+    return answer ? cleanAssistantText(answer) : '';
+  } catch {
+    return null;
+  }
 }
 
 function typeText(target, text, onDone, speed = 32) {
