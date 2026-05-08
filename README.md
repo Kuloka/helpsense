@@ -12,6 +12,7 @@ It includes a chat screen, Google Translate-style translator, original
 color themes plus flag themes, watermark settings, saved chats and quick tools,
 but it does not automate message sending.
 Smartes than chatgpt in math you can use it comfortable
+
 <<<<<<< HEAD
 Requirements
 ------------
