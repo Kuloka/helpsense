@@ -15,6 +15,7 @@ function classifyMessage(payload) {
   const latest = latestUserText(payload.text);
   const normalized = latest.toLowerCase().trim();
   if (!normalized) return 'casual_short';
+  if (isAbusive(normalized)) return 'abusive';
   if (isMath(normalized)) return 'math';
   if (isCoding(normalized)) return 'coding';
   if (isShortQuestion(normalized)) return 'serious_question';
@@ -39,7 +40,7 @@ function latestUserText(text) {
 
 function isMath(text) {
   return Boolean(extractMathExpression(text))
-    || /(?:корень|процент|сколько будет|посчитай|вычисли|sqrt|sin|cos|tan|\d+\s*[+\-*/^%]\s*\d+)/i.test(text);
+    || /(?:корень|процент|сколько будет|посчитай|вычисли|геометр|площад|периметр|объ[её]м|радиус|диаметр|окружност|угол|треугольник|пи|π|sqrt|sin|cos|tan|\d+\s*[+\-*/^%]\s*\d+)/i.test(text);
 }
 
 function isCoding(text) {
@@ -78,6 +79,10 @@ function isSlang(text) {
 
 function isEmotionalReaction(text) {
   return /(?:жесть|капец|блин|мда|ого|вау|ужас|круто|nice|wow|damn|ouch)/i.test(text);
+}
+
+function isAbusive(text) {
+  return /(?:сука|бля|блять|хуй|хуя|нахуй|пизд|еба|ёба|долбо|дебил|идиот|тупой|тупая|тварь|ублюд|fuck|shit|bitch|asshole|idiot|moron|stupid)/i.test(text);
 }
 
 module.exports = {

@@ -135,7 +135,7 @@ function hasDivisionByZero(expression) {
 
 function formatMathAnswer(expression, result, source = '') {
   const displayExpression = localizeExpression(expression, source);
-  return `${displayExpression} = ${formatNumber(result)}`;
+  return `${displayExpression} = ${formatResult(result, expression)}`;
 }
 
 function localizeExpression(expression, source) {
@@ -151,6 +151,31 @@ function formatNumber(value) {
   return Number(value.toPrecision(12)).toLocaleString('ru-RU', {
     maximumFractionDigits: 10
   });
+}
+
+function formatResult(value, expression = '') {
+  if (Number.isInteger(value)) return formatNumber(value);
+  if (shouldPreferFraction(expression)) {
+    const fraction = toSimpleFraction(value);
+    if (fraction) return fraction;
+  }
+  return formatNumber(value);
+}
+
+function shouldPreferFraction(expression) {
+  return /\/|\bfraction\b/i.test(String(expression));
+}
+
+function toSimpleFraction(value) {
+  try {
+    const fraction = math.fraction(value);
+    if (fraction.d > 10000n) return '';
+    const restored = Number(fraction.s * fraction.n) / Number(fraction.d);
+    if (Math.abs(restored - value) > 1e-10) return '';
+    return fraction.toFraction(true);
+  } catch {
+    return '';
+  }
 }
 
 module.exports = {

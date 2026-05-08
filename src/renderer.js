@@ -81,6 +81,7 @@ let activeStreamTimer = null;
 let activeTranslateRequestId = null;
 let translateLoadingTimer = null;
 let translateAutoTimer = null;
+let stopButtonLockedUntil = 0;
 
 const I18N = {
   en: {
@@ -254,9 +255,27 @@ function escapeHtml(value) {
 }
 
 function formatInline(value) {
-  return escapeHtml(value)
+  return formatNotebookFractions(escapeHtml(normalizeMathMarkup(value))
     .replace(/==(.+?)==/g, '$1')
-    .replace(/\*\*(.+?)\*\*/g, '$1');
+    .replace(/\*\*(.+?)\*\*/g, '$1'));
+}
+
+function normalizeMathMarkup(value) {
+  return String(value || '')
+    .replace(/\\\(|\\\)|\\\[|\\\]/g, '')
+    .replace(/\\frac\s*\{\s*(-?\d+)\s*\}\s*\{\s*(\d+)\s*\}/g, '$1/$2')
+    .replace(/\\frac\s*(-?\d+)\s*\{\s*(\d+)\s*\}/g, '$1/$2')
+    .replace(/\\frac\s*\{\s*(-?\d+)\s*\}\s*(\d+)/g, '$1/$2')
+    .replace(/\\frac\s*(-?\d)\s*(\d)/g, '$1/$2')
+    .replace(/\\div/g, '÷')
+    .replace(/\\cdot|\\times/g, '×')
+    .replace(/\\pi/g, 'π');
+}
+
+function formatNotebookFractions(value) {
+  return String(value).replace(/(^|[^\w>])(-?\d+)\s*\/\s*(\d+)(?![\w<])/g, (_match, prefix, numerator, denominator) => (
+    `${prefix}<span class="notebook-fraction"><span class="fraction-top">${numerator}</span><span class="fraction-bottom">${denominator}</span></span>`
+  ));
 }
 
 function assistantMarkdown(text) {
@@ -475,6 +494,7 @@ async function streamAi(payload, onChunk) {
 
 function stopThinking() {
   if (!state.isThinking) return false;
+  if (Date.now() < stopButtonLockedUntil) return true;
   const requestId = activeChatRequestId;
   activeChatRequestId = null;
   state.isThinking = false;
@@ -522,7 +542,7 @@ function startStreamTypewriter() {
     const step = 1;
     activeStreamText += activeStreamQueue.slice(0, step);
     activeStreamQueue = activeStreamQueue.slice(step);
-    activeStreamBubble.textContent = cleanAssistantText(activeStreamText);
+    setStreamBubbleContent(cleanAssistantText(activeStreamText));
     if (!userScrolledChat) chatLog.scrollTop = chatLog.scrollHeight;
   }, 30);
 }
@@ -530,7 +550,18 @@ function startStreamTypewriter() {
 function flushStreamTypewriter() {
   activeStreamText = cleanAssistantText(activeStreamFullText || activeStreamText);
   activeStreamQueue = '';
-  if (activeStreamBubble) activeStreamBubble.textContent = activeStreamText;
+  setStreamBubbleContent(activeStreamText);
+}
+
+function setStreamBubbleContent(text) {
+  if (!activeStreamBubble) return;
+  let content = activeStreamBubble.querySelector('.assistant-content');
+  if (!content) {
+    content = document.createElement('div');
+    content.className = 'assistant-content';
+    activeStreamBubble.replaceChildren(content);
+  }
+  content.innerHTML = assistantMarkdown(text);
 }
 
 function waitForStreamTypewriter(maxWait = 8000) {
@@ -689,6 +720,9 @@ function animatedAssistantBubble(text) {
 function streamingAssistantBubble() {
   const bubble = messageBubble({ role: 'assistant', text: '' });
   bubble.classList.add('typing-text');
+  const content = document.createElement('div');
+  content.className = 'assistant-content';
+  bubble.appendChild(content);
   return bubble;
 }
 
@@ -820,7 +854,9 @@ function renderComposerModes() {
 function renderSendButton() {
   const button = document.getElementById('sendChat');
   const canStop = Boolean(state.isTyping || state.isThinking);
+  const stopLocked = canStop && Date.now() < stopButtonLockedUntil;
   button.classList.toggle('stop-mode', canStop);
+  button.classList.toggle('stop-locked', stopLocked);
   button.title = canStop ? 'Stop' : 'Send';
   button.setAttribute('aria-label', canStop ? 'Stop' : 'Send');
   button.innerHTML = canStop
@@ -1036,6 +1072,8 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   resizeChatInput();
   renderSelectedQuote();
   state.isThinking = true;
+  stopButtonLockedUntil = Date.now() + 500;
+  setTimeout(renderSendButton, 520);
   renderSendButton();
   renderChat();
   activeStreamText = '';

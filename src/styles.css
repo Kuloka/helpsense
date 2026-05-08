@@ -162,6 +162,8 @@ h1 strong,
   background: transparent;
   cursor: pointer;
   padding: 0;
+  --lite-tab-color: #777a80;
+  --lite-tab-soft: rgba(119, 122, 128, .58);
   transition: color .18s ease, filter .18s ease, transform .18s ease;
 }
 
@@ -176,24 +178,55 @@ h1 strong,
   transition: transform .22s ease;
 }
 
-.chip-icon {
-  width: 34px;
-  height: 34px;
+.lite-tab-logo {
+  position: relative;
+  width: 38px;
+  height: 38px;
   display: block;
-  background: currentColor;
-  -webkit-mask: url("microchip.png") center / contain no-repeat;
-  mask: url("microchip.png") center / contain no-repeat;
-  transition: transform .22s ease;
+  transition: transform .22s ease, filter .22s ease;
+}
+
+.lite-tab-logo i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 31px;
+  height: 12px;
+  border: 2.4px solid transparent;
+  border-left-color: var(--lite-tab-soft);
+  border-right-color: var(--lite-tab-soft);
+  border-radius: 50%;
+  transform-origin: center;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--lite-tab-color) 22%, transparent);
+}
+
+.lite-tab-logo i:nth-child(1) { transform: translate(-50%, -50%) rotate(0deg); }
+.lite-tab-logo i:nth-child(2) { transform: translate(-50%, -50%) rotate(45deg); }
+.lite-tab-logo i:nth-child(3) { transform: translate(-50%, -50%) rotate(90deg); }
+.lite-tab-logo i:nth-child(4) { transform: translate(-50%, -50%) rotate(135deg); }
+
+.lite-tab-logo::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lite-tab-color);
+  transform: translate(-50%, -50%);
 }
 
 .tab:hover,
 .tab.active {
   color: var(--main);
+  --lite-tab-color: var(--main);
+  --lite-tab-soft: color-mix(in srgb, var(--main) 62%, transparent);
   filter: drop-shadow(0 0 8px rgba(157, 255, 71, .48));
 }
 
 .tab:hover svg,
-.tab:hover .chip-icon {
+.tab:hover .lite-tab-logo {
   transform: scale(1.03);
 }
 
@@ -522,6 +555,34 @@ h1 {
 .assistant-content li {
   margin: 4px 0;
   padding-left: 4px;
+}
+
+.notebook-fraction {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25em;
+  margin: 0 .08em;
+  line-height: 1;
+  vertical-align: middle;
+  transform: translateY(-.03em);
+}
+
+.fraction-top,
+.fraction-bottom {
+  display: block;
+  padding: 0 .18em;
+  font-size: .86em;
+}
+
+.fraction-top {
+  border-bottom: 1.5px solid currentColor;
+  padding-bottom: .08em;
+}
+
+.fraction-bottom {
+  padding-top: .08em;
 }
 
 .typing-text::after {
@@ -913,6 +974,11 @@ h1 {
 .round-button.stop-mode {
   background: #4a4a4f;
   color: #f2f2f5;
+}
+
+.round-button.stop-locked {
+  cursor: default;
+  opacity: .78;
 }
 
 .round-button:hover {

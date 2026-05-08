@@ -166,7 +166,7 @@ class AIManager {
         : [this.pollinations, this.ollama];
     }
 
-    if (isCasualClass(payload.messageClass)) {
+    if (isCasualClass(payload.messageClass) || payload.messageClass === 'abusive') {
       return this.openai.hasApiKey()
         ? [this.openai, this.pollinations, this.ollama]
         : [this.pollinations, this.ollama];

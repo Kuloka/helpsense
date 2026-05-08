@@ -2,7 +2,7 @@ function routeModel(payload) {
   if (payload.deepResearch) return 'gpt-5.2';
   if (payload.task === 'translate' || payload.task?.startsWith('translate_')) return 'gpt-5.4-mini';
   if (payload.task === 'summarize' || payload.task === 'shorten') return 'gpt-5.4-mini';
-  if (isCasualClass(payload.messageClass)) return 'gpt-5.4-mini';
+  if (isCasualClass(payload.messageClass) || payload.messageClass === 'abusive') return 'gpt-5.4-mini';
   if (payload.messageClass === 'math' || payload.messageClass === 'coding') return 'gpt-5.4';
   if (payload.deepThinking) return 'gpt-5.2';
   return 'gpt-5.4';
@@ -15,6 +15,13 @@ function modelSettings(payload) {
       temperature: 0.8,
       maxOutputTokens: 420,
       behavior: 'fast_conversational'
+    };
+  }
+  if (messageClass === 'abusive') {
+    return {
+      temperature: 0.55,
+      maxOutputTokens: 180,
+      behavior: 'calm_boundary'
     };
   }
   if (messageClass === 'math' || messageClass === 'deep_reasoning' || payload.deepThinking || payload.deepResearch) {
