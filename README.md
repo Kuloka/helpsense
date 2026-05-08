@@ -1,4 +1,5 @@
   <img width="396" height="104" alt="image" src="https://github.com/user-attachments/assets/8a1ff54f-c588-427f-8688-2dc3c4aec431" />
+<img width="110" height="113" alt="image" src="https://github.com/user-attachments/assets/9de45a49-b3fd-4579-b3d6-d8bc051e8ea7" />
 
 
 helpsense desktop
@@ -16,7 +17,8 @@ Requirements
 ------------
 PREVIEW
 
-<img width="962" height="671" alt="image" src="https://github.com/user-attachments/assets/a2f1b1e7-0f5e-4556-9574-705532eb4f7c" />
+<img width="961" height="671" alt="image" src="https://github.com/user-attachments/assets/97fe5e57-e286-41d1-9ad3-c79efc08ec88" />
+
 
 
 - Node.js 20 or newer
