@@ -8,6 +8,7 @@
   --line: #3a3b40;
   --text: #ececf1;
   --muted: #a9a9b3;
+  --composer-height: 64px;
 }
 
 * {
@@ -282,6 +283,12 @@ h1 {
   font-weight: 700;
 }
 
+.chat-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .icon-button {
   width: 34px;
   height: 34px;
@@ -294,6 +301,16 @@ h1 {
   padding: 0;
   cursor: pointer;
   transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+
+.clear-chat-button {
+  background: #3a3b40;
+  color: #d9d9e3;
+}
+
+.clear-chat-button:hover {
+  background: #4a4b51;
+  color: #fff;
 }
 
 .icon-button:hover {
@@ -313,7 +330,7 @@ h1 {
 .chat-log {
   height: calc(100vh - 232px);
   overflow-y: auto;
-  padding: 18px 18px 96px;
+  padding: 18px 18px calc(var(--composer-height) + 34px);
   scrollbar-color: #5a5b61 transparent;
   scrollbar-width: thin;
 }
@@ -451,6 +468,22 @@ h1 {
   padding-left: 4px;
 }
 
+.typing-text::after {
+  content: "";
+  width: .58em;
+  height: 1.05em;
+  display: inline-block;
+  margin-left: 3px;
+  background: #f2f2f5;
+  vertical-align: -.16em;
+  animation: terminal-caret .85s steps(1, end) infinite;
+}
+
+@keyframes terminal-caret {
+  0%, 48% { opacity: 1; }
+  49%, 100% { opacity: 0; }
+}
+
 .typing-bubble {
   width: 74px;
   min-width: 74px;
@@ -518,6 +551,21 @@ h1 {
 @keyframes message-in {
   from { opacity: 0; transform: translateY(8px) scale(.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.chat-log.clearing .message,
+.chat-log.clearing .user-turn,
+.chat-log.clearing .answer-tools,
+.chat-log.clearing .typing-bubble {
+  animation: chat-clear-out .22s ease forwards;
+}
+
+@keyframes chat-clear-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(.97);
+    filter: blur(2px);
+  }
 }
 
 .chat-bar {
@@ -624,7 +672,7 @@ h1 {
   width: 100%;
   min-width: 0;
   min-height: 42px;
-  max-height: 130px;
+  max-height: 150px;
   border: 0;
   box-sizing: border-box;
   resize: none;
@@ -632,7 +680,24 @@ h1 {
   background: transparent;
   padding: 10px 4px;
   outline: none;
-  overflow-y: auto;
+  overflow-y: hidden;
+  scrollbar-color: #6a6b70 transparent;
+  scrollbar-width: thin;
+}
+
+.chat-bar textarea::-webkit-scrollbar {
+  width: 8px;
+}
+
+.chat-bar textarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-bar textarea::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background-clip: padding-box;
+  background: #6a6b70;
 }
 
 .plus-button {
@@ -708,13 +773,17 @@ h1 {
   transition: background .16s ease, color .16s ease;
 }
 
-.plus-menu-item:hover,
-.plus-menu-item.active {
+.plus-menu-item:hover {
   background: #414247;
 }
 
 .plus-menu-item.active {
+  background: transparent;
   color: var(--main);
+}
+
+.plus-menu-item.active:hover {
+  background: #414247;
 }
 
 .plus-menu-item.muted {
@@ -779,13 +848,19 @@ h1 {
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: #4a4a4f;
-  color: white;
+  background: #d7d7d9;
+  color: #171717;
   cursor: pointer;
+  transition: background .16s ease, transform .16s ease;
 }
 
 .round-button.stop-mode {
   background: #4a4a4f;
+  color: #f2f2f5;
+}
+
+.round-button:hover {
+  transform: translateY(-1px);
 }
 
 .stop-square {
@@ -831,6 +906,11 @@ h1 {
   gap: 14px;
 }
 
+.translate-output-wrap {
+  position: relative;
+  min-width: 0;
+}
+
 .translate-panes textarea {
   min-height: 170px;
   border: 0;
@@ -849,6 +929,50 @@ h1 {
 
 .translate-panes textarea[readonly] {
   cursor: default;
+}
+
+.translate-output-wrap textarea {
+  height: 100%;
+}
+
+.translate-loading {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  display: none;
+  align-items: flex-end;
+  gap: 2px;
+  color: #a0a0a0;
+  font-size: 28px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.translate-output-wrap.translating .translate-loading {
+  display: flex;
+}
+
+.translate-loading i {
+  width: 5px;
+  height: 5px;
+  margin-bottom: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  transform: translateY(0) scale(.78);
+  animation: translate-dot 1s ease-in-out infinite;
+}
+
+.translate-loading i:nth-child(3) {
+  animation-delay: .15s;
+}
+
+.translate-loading i:nth-child(4) {
+  animation-delay: .3s;
+}
+
+@keyframes translate-dot {
+  0%, 70%, 100% { transform: translateY(0) scale(.78); opacity: .45; }
+  35% { transform: translateY(-7px) scale(1.15); opacity: 1; }
 }
 
 .hidden-action {

@@ -36,19 +36,22 @@
       ]
     },
     "mac": {
-      "icon": "src/icon.png",
+      "icon": "src/icon.ico",
       "target": [
         "dmg"
       ],
       "category": "public.app-category.productivity"
     },
     "linux": {
-      "icon": "src/icon.png",
+      "icon": "src/icon.ico",
       "target": [
         "AppImage",
         "deb"
       ],
       "category": "Utility"
     }
+  },
+  "dependencies": {
+    "mathjs": "^15.2.0"
   }
 }

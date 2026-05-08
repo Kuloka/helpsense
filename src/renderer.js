@@ -57,6 +57,7 @@ const clearSelectedQuote = document.getElementById('clearSelectedQuote');
 const toast = document.getElementById('toast');
 const translateInput = document.getElementById('translateInput');
 const translateOutput = document.getElementById('translateOutput');
+const translateLoading = document.getElementById('translateLoading');
 const fromLang = document.getElementById('fromLang');
 const toLang = document.getElementById('toLang');
 const savedList = document.getElementById('savedList');
@@ -71,6 +72,15 @@ let typewriterTimer = null;
 let translateTypeTimer = null;
 let typingBubbleElement = null;
 let userScrolledChat = false;
+let activeChatRequestId = null;
+let activeStreamBubble = null;
+let activeStreamText = '';
+let activeStreamFullText = '';
+let activeStreamQueue = '';
+let activeStreamTimer = null;
+let activeTranslateRequestId = null;
+let translateLoadingTimer = null;
+let translateAutoTimer = null;
 
 const I18N = {
   en: {
@@ -346,6 +356,68 @@ function typeTextarea(target, text, speed = 30) {
   }, speed);
 }
 
+function setTranslateLoading(isLoading) {
+  translateLoading?.parentElement?.classList.toggle('translating', Boolean(isLoading));
+  clearInterval(translateLoadingTimer);
+  if (!isLoading) {
+    const label = translateLoading?.querySelector('span');
+    if (label) label.textContent = 'Переводится';
+    return;
+  }
+
+  const label = translateLoading?.querySelector('span');
+  if (!label) return;
+  const text = 'Переводится';
+  let index = 0;
+  label.textContent = '';
+  translateLoadingTimer = setInterval(() => {
+    index = index >= text.length ? text.length : index + 1;
+    label.textContent = text.slice(0, index);
+    if (index >= text.length) clearInterval(translateLoadingTimer);
+  }, 35);
+}
+
+function clearTranslateOutput() {
+  translateRequestId += 1;
+  clearTimeout(translateAutoTimer);
+  if (activeTranslateRequestId) {
+    window.helpsense?.cancelOpenAIHelper?.(activeTranslateRequestId);
+    activeTranslateRequestId = null;
+  }
+  setTranslateLoading(false);
+  state.translateOutput = '';
+  eraseTranslateOutput();
+}
+
+function scheduleAutoTranslate() {
+  clearTimeout(translateAutoTimer);
+  if (!translateInput.value.trim()) return;
+  translateAutoTimer = setTimeout(() => {
+    document.getElementById('translateAi').click();
+  }, 2500);
+}
+
+function eraseTranslateOutput() {
+  clearInterval(translateTypeTimer);
+  const startValue = translateOutput.value;
+  if (!startValue) {
+    translateOutput.placeholder = t('translate_output');
+    return;
+  }
+
+  translateOutput.placeholder = '';
+  let index = startValue.length;
+  translateTypeTimer = setInterval(() => {
+    index -= Math.max(1, Math.ceil(index / 24));
+    translateOutput.value = startValue.slice(0, Math.max(0, index));
+    if (index <= 0) {
+      clearInterval(translateTypeTimer);
+      translateOutput.value = '';
+      translateOutput.placeholder = t('translate_output');
+    }
+  }, 14);
+}
+
 async function rememberApiKey() {
   return true;
 }
@@ -353,6 +425,88 @@ async function rememberApiKey() {
 async function runAi(payload) {
   await rememberApiKey();
   return window.helpsense?.runOpenAIHelper(payload);
+}
+
+async function streamAi(payload, onChunk) {
+  await rememberApiKey();
+  if (!window.helpsense?.streamOpenAIHelper) {
+    const response = await runAi(payload);
+    if (response?.ok && response.text) onChunk(response.text);
+    return response;
+  }
+  return window.helpsense.streamOpenAIHelper(payload);
+}
+
+function stopThinking() {
+  if (!state.isThinking) return false;
+  const requestId = activeChatRequestId;
+  activeChatRequestId = null;
+  state.isThinking = false;
+  activeStreamBubble = null;
+  activeStreamText = '';
+  activeStreamFullText = '';
+  activeStreamQueue = '';
+  clearInterval(activeStreamTimer);
+  window.helpsense?.cancelOpenAIHelper?.(requestId);
+  renderChat();
+  renderSendButton();
+  setStatus('Stopped');
+  return true;
+}
+
+function appendStreamChunk(requestId, chunk) {
+  if (activeChatRequestId !== requestId) return;
+  ensureStreamBubble();
+  activeStreamFullText += String(chunk || '');
+  activeStreamQueue += String(chunk || '');
+  startStreamTypewriter();
+}
+
+function ensureStreamBubble() {
+  if (activeStreamBubble) return;
+  chatLog.querySelector('.typing-bubble')?.remove();
+  activeStreamBubble = streamingAssistantBubble();
+  chatLog.appendChild(activeStreamBubble);
+  if (!userScrolledChat) chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+window.helpsense?.onAIStreamChunk?.(({ requestId, chunk }) => {
+  appendStreamChunk(requestId, chunk);
+});
+
+function startStreamTypewriter() {
+  if (activeStreamTimer) return;
+  activeStreamTimer = setInterval(() => {
+    if (!activeStreamQueue || !activeStreamBubble) {
+      clearInterval(activeStreamTimer);
+      activeStreamTimer = null;
+      return;
+    }
+    const step = 1;
+    activeStreamText += activeStreamQueue.slice(0, step);
+    activeStreamQueue = activeStreamQueue.slice(step);
+    activeStreamBubble.textContent = activeStreamText;
+    if (!userScrolledChat) chatLog.scrollTop = chatLog.scrollHeight;
+  }, 30);
+}
+
+function flushStreamTypewriter() {
+  activeStreamText = activeStreamFullText || activeStreamText;
+  activeStreamQueue = '';
+  if (activeStreamBubble) activeStreamBubble.textContent = activeStreamText;
+}
+
+function waitForStreamTypewriter(maxWait = 8000) {
+  const started = Date.now();
+  return new Promise(resolve => {
+    const timer = setInterval(() => {
+      if (!activeStreamQueue || Date.now() - started > maxWait) {
+        clearInterval(timer);
+        if (Date.now() - started > maxWait) flushStreamTypewriter();
+        resolve();
+      }
+    }, 30);
+  });
 }
 
 function chatContext() {
@@ -484,6 +638,12 @@ function animatedAssistantBubble(text) {
   return bubble;
 }
 
+function streamingAssistantBubble() {
+  const bubble = messageBubble({ role: 'assistant', text: '' });
+  bubble.classList.add('typing-text');
+  return bubble;
+}
+
 function typingBubble() {
   const bubble = document.createElement('div');
   bubble.className = 'message assistant typing-bubble';
@@ -573,8 +733,24 @@ function saveCurrentChat() {
   setStatus('Chat saved');
 }
 
+function clearCurrentChat() {
+  if (state.isThinking) stopThinking();
+  if (!state.chatMessages.length) return setStatus('Chat is already empty');
+  chatLog.classList.add('clearing');
+  setTimeout(() => {
+    state.chatMessages = [];
+    state.chatAnswer = '';
+    state.activeSavedId = null;
+    chatLog.classList.remove('clearing');
+    save();
+    renderChat();
+    setStatus('Chat cleared');
+  }, 230);
+}
+
 function render() {
   chatInput.value = state.chatInput;
+  resizeChatInput();
   renderSelectedQuote();
   translateInput.value = state.translateInput;
   translateOutput.value = state.translateOutput;
@@ -595,12 +771,13 @@ function renderComposerModes() {
 
 function renderSendButton() {
   const button = document.getElementById('sendChat');
-  button.classList.toggle('stop-mode', Boolean(state.isTyping));
-  button.title = state.isTyping ? 'Stop' : 'Send';
-  button.setAttribute('aria-label', state.isTyping ? 'Stop' : 'Send');
-  button.innerHTML = state.isTyping
+  const canStop = Boolean(state.isTyping || state.isThinking);
+  button.classList.toggle('stop-mode', canStop);
+  button.title = canStop ? 'Stop' : 'Send';
+  button.setAttribute('aria-label', canStop ? 'Stop' : 'Send');
+  button.innerHTML = canStop
     ? '<span class="stop-square" aria-hidden="true"></span>'
-    : '<svg viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6"></path></svg>';
+    : '<svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>';
 }
 
 function renderSelectedQuote() {
@@ -608,6 +785,16 @@ function renderSelectedQuote() {
   selectedQuote.classList.toggle('show', hasQuote);
   selectedQuote.classList.remove('active');
   selectedQuoteText.textContent = state.selectedQuote || '';
+  resizeChatInput();
+}
+
+function resizeChatInput() {
+  chatInput.style.height = 'auto';
+  const nextHeight = Math.min(chatInput.scrollHeight, 150);
+  chatInput.style.height = `${Math.max(nextHeight, 42)}px`;
+  chatInput.style.overflowY = chatInput.scrollHeight > 150 ? 'auto' : 'hidden';
+  const composerHeight = document.querySelector('.chat-bar')?.offsetHeight || 64;
+  document.documentElement.style.setProperty('--composer-height', `${composerHeight}px`);
 }
 
 document.querySelectorAll('.tab').forEach(button => {
@@ -628,6 +815,7 @@ languageSelect.addEventListener('change', event => {
 
 chatInput.addEventListener('input', event => {
   state.chatInput = event.target.value;
+  resizeChatInput();
   save();
 });
 
@@ -666,7 +854,6 @@ deepThink.addEventListener('click', () => {
 
 deepResearch.addEventListener('click', () => {
   state.deepResearch = !state.deepResearch;
-  state.deepThinking = state.deepResearch || state.deepThinking;
   save();
   renderComposerModes();
   setStatus(state.deepResearch ? 'Deep research enabled' : 'Deep research disabled');
@@ -731,19 +918,8 @@ selectedQuote.addEventListener('click', event => {
 
 translateInput.addEventListener('input', event => {
   state.translateInput = event.target.value;
-  if (!event.target.value.trim()) {
-    translateRequestId += 1;
-    clearInterval(translateTypeTimer);
-    state.translateOutput = '';
-    translateOutput.value = '';
-    translateOutput.placeholder = t('translate_output');
-    clearTimeout(translateInput.timer);
-  } else {
-    clearTimeout(translateInput.timer);
-    translateInput.timer = setTimeout(() => {
-      document.getElementById('translateAi').click();
-    }, 360);
-  }
+  clearTranslateOutput();
+  scheduleAutoTranslate();
   save();
 });
 
@@ -756,11 +932,15 @@ translateInput.addEventListener('keydown', event => {
 
 fromLang.addEventListener('change', event => {
   state.fromLang = event.target.value;
+  clearTranslateOutput();
+  scheduleAutoTranslate();
   save();
 });
 
 toLang.addEventListener('change', event => {
   state.toLang = event.target.value;
+  clearTranslateOutput();
+  scheduleAutoTranslate();
   save();
 });
 
@@ -790,82 +970,119 @@ watermarkToggle.addEventListener('click', () => {
 
 document.getElementById('sendChat').addEventListener('click', async () => {
   if (stopTyping()) return;
+  if (stopThinking()) return;
   if (!chatInput.value.trim() && !state.selectedQuote) return setStatus('Question is empty');
   const question = chatInput.value.trim() || (state.language === 'ru' ? 'Объясни выделенный фрагмент.' : 'Explain the selected text.');
   const selectedQuoteText = state.selectedQuote;
   state.chatInput = '';
   state.selectedQuote = '';
   state.chatAnswer = '';
+  const requestId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  activeChatRequestId = requestId;
   state.chatMessages.push({
     role: 'user',
     text: question,
     quote: selectedQuoteText || ''
   });
   chatInput.value = '';
+  resizeChatInput();
   renderSelectedQuote();
   state.isThinking = true;
+  renderSendButton();
   renderChat();
+  activeStreamText = '';
+  activeStreamFullText = '';
+  activeStreamQueue = '';
+  activeStreamBubble = null;
   setStatus('ChatGPT is thinking...');
-  const response = await runAi({
+  const response = await streamAi({
+    requestId,
     task: 'chat',
     text: chatContext(),
     deepThinking: state.deepThinking,
     deepResearch: state.deepResearch
-  });
+  }, chunk => appendStreamChunk(requestId, chunk));
+  if (activeChatRequestId !== requestId) return;
+  activeChatRequestId = null;
   state.isThinking = false;
+  await waitForStreamTypewriter();
+  activeStreamBubble?.classList.remove('typing-text');
+  activeStreamBubble = null;
+  renderSendButton();
   if (!response?.ok) {
+    activeStreamText = '';
+    activeStreamFullText = '';
+    activeStreamQueue = '';
     renderChat();
     return setStatus(response?.error || 'ChatGPT failed');
   }
-  state.chatAnswer = response.text;
-  state.chatMessages.push({ role: 'assistant', text: response.text });
+  const answer = response.text || activeStreamFullText || activeStreamText;
+  activeStreamText = '';
+  activeStreamFullText = '';
+  activeStreamQueue = '';
+  state.chatAnswer = answer;
+  state.chatMessages.push({ role: 'assistant', text: answer });
   if (state.activeSavedId) {
     const saved = state.savedChats.find(item => (item.id || item.date) === state.activeSavedId);
     if (saved) {
-      saved.answer = response.text;
+      saved.answer = answer;
       saved.messages = state.chatMessages;
     }
   }
   save();
-  chatLog.replaceChildren();
-  userScrolledChat = false;
-  state.chatMessages.slice(0, -1).forEach(message => chatLog.appendChild(messageBubble(message)));
-  chatLog.appendChild(animatedAssistantBubble(response.text));
+  renderChat();
   setStatus('ChatGPT answered');
 });
 
 document.getElementById('saveChat').addEventListener('click', saveCurrentChat);
 document.getElementById('swapLang').addEventListener('click', () => {
-  if (fromLang.value === 'auto') return setStatus('Auto source cannot swap');
   const from = fromLang.value;
-  state.fromLang = toLang.value;
-  state.toLang = from;
+  const to = toLang.value;
+  const inputText = translateInput.value;
+  const outputText = translateOutput.value;
+  state.fromLang = from === 'auto' ? to : to;
+  state.toLang = from === 'auto'
+    ? (state.language !== to ? state.language : (to === 'ru' ? 'en' : 'ru'))
+    : from;
+  state.translateInput = outputText;
+  state.translateOutput = inputText;
   fromLang.value = state.fromLang;
   toLang.value = state.toLang;
+  translateInput.value = state.translateInput;
+  clearInterval(translateTypeTimer);
+  setTranslateLoading(false);
+  translateOutput.placeholder = state.translateOutput ? '' : t('translate_output');
+  translateOutput.value = state.translateOutput;
+  clearTimeout(translateAutoTimer);
+  scheduleAutoTranslate();
   save();
 });
 
 document.getElementById('translateAi').addEventListener('click', async () => {
+  clearTimeout(translateAutoTimer);
   if (!translateInput.value.trim()) {
-    translateRequestId += 1;
-    clearInterval(translateTypeTimer);
-    translateOutput.value = '';
-    translateOutput.placeholder = t('translate_output');
+    clearTranslateOutput();
     return setStatus('Text is empty');
   }
   state.translateInput = translateInput.value;
   const requestId = ++translateRequestId;
+  const requestToken = `translate-${requestId}`;
+  activeTranslateRequestId = requestToken;
   clearInterval(translateTypeTimer);
   translateOutput.value = '';
   translateOutput.placeholder = '';
+  setTranslateLoading(true);
   setStatus('Translating...');
   const response = await runAi({
+    requestId: requestToken,
     task: 'translate',
     text: state.translateInput,
     from: fromLang.value,
     to: toLang.value
   });
   if (requestId !== translateRequestId) return;
+  activeTranslateRequestId = null;
+  setTranslateLoading(false);
   if (!response?.ok) {
     translateOutput.placeholder = t('translate_output');
     return setStatus(response?.error || 'Translation failed');
@@ -874,11 +1091,12 @@ document.getElementById('translateAi').addEventListener('click', async () => {
   const translated = translatedText.trim() === '...' ? '' : translatedText;
   state.translateOutput = translated;
   translateOutput.placeholder = translated ? '' : t('translate_output');
-  typeTextarea(translateOutput, translated);
+  typeTextarea(translateOutput, translated, 22);
   save();
   setStatus('Translated');
 });
 
+document.getElementById('clearChat').addEventListener('click', clearCurrentChat);
 document.getElementById('copyTime').addEventListener('click', () => copy(formattedTime()));
 document.getElementById('copyDate').addEventListener('click', () => copy(formattedDate()));
 document.getElementById('resetAll').addEventListener('click', () => {

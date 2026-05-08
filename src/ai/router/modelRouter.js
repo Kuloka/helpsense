@@ -1,0 +1,37 @@
+function routeModel(payload) {
+  if (payload.deepResearch) return 'gpt-5.2';
+  if (payload.task === 'translate' || payload.task?.startsWith('translate_')) return 'gpt-5.4-mini';
+  if (payload.task === 'summarize' || payload.task === 'shorten') return 'gpt-5.4-mini';
+  if (payload.messageClass === 'casual_chat') return 'gpt-5.4-mini';
+  if (payload.messageClass === 'math' || payload.messageClass === 'coding') return 'gpt-5.4';
+  if (payload.deepThinking) return 'gpt-5.2';
+  return 'gpt-5.4';
+}
+
+function modelSettings(payload) {
+  const messageClass = payload.messageClass || 'serious_question';
+  if (messageClass === 'casual_chat') {
+    return {
+      temperature: 0.8,
+      maxOutputTokens: 420,
+      behavior: 'fast_conversational'
+    };
+  }
+  if (messageClass === 'math' || messageClass === 'deep_reasoning' || payload.deepThinking || payload.deepResearch) {
+    return {
+      temperature: 0.2,
+      maxOutputTokens: payload.deepResearch ? 1600 : 900,
+      behavior: 'reasoning'
+    };
+  }
+  return {
+    temperature: 0.45,
+    maxOutputTokens: 900,
+    behavior: 'balanced'
+  };
+}
+
+module.exports = {
+  modelSettings,
+  routeModel
+};
