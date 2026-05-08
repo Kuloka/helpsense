@@ -29,8 +29,11 @@ function classifyMessage(payload) {
 function latestUserText(text) {
   const lines = String(text || '')
     .split('\n')
-    .filter(line => line.startsWith('User:'))
-    .map(line => line.replace(/^User:\s*/, '').trim());
+    .filter(line => line.startsWith('User:') || line.startsWith('User question about selected text:'))
+    .map(line => line
+      .replace(/^User:\s*/, '')
+      .replace(/^User question about selected text:\s*/, '')
+      .trim());
   return lines.length ? lines[lines.length - 1] : String(text || '').trim();
 }
 

@@ -522,7 +522,7 @@ function chatContext() {
     .slice(-8)
     .map(message => {
       if (message.role === 'user' && message.quote) {
-        return `Selected text: "${message.quote}"\nUser question about selected text: ${message.text || 'Explain it.'}`;
+        return `Selected text: "${message.quote}"\nUser: ${message.text || 'Explain it.'}`;
       }
       return `${message.role === 'user' ? 'User' : 'Assistant'}: ${message.text || ''}`;
     })

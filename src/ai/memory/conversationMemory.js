@@ -16,6 +16,7 @@ function parseLegacyConversation(text) {
       if (line.startsWith('User:')) return { role: 'user', content: line.replace(/^User:\s*/, '').trim() };
       if (line.startsWith('Assistant:')) return { role: 'assistant', content: line.replace(/^Assistant:\s*/, '').trim() };
       if (line.startsWith('Selected text:')) return { role: 'user', content: line.trim() };
+      if (line.startsWith('User question about selected text:')) return { role: 'user', content: line.replace(/^User question about selected text:\s*/, '').trim() };
       return null;
     })
     .filter(Boolean);
