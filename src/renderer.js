@@ -17,6 +17,135 @@ const THEMES = [
   ['tr', 'Turkey', ['#e30a17', '#ffffff'], true]
 ];
 
+const FALLBACK_CURRENCIES = {
+  AED: 'United Arab Emirates Dirham',
+  AFN: 'Afghan Afghani',
+  ALL: 'Albanian Lek',
+  AMD: 'Armenian Dram',
+  ANG: 'Netherlands Antillean Guilder',
+  AOA: 'Angolan Kwanza',
+  ARS: 'Argentine Peso',
+  AUD: 'Australian Dollar',
+  AWG: 'Aruban Florin',
+  AZN: 'Azerbaijani Manat',
+  BAM: 'Bosnia and Herzegovina Convertible Mark',
+  BBD: 'Barbadian Dollar',
+  BDT: 'Bangladeshi Taka',
+  BGN: 'Bulgarian Lev',
+  BHD: 'Bahraini Dinar',
+  BIF: 'Burundian Franc',
+  BMD: 'Bermudian Dollar',
+  BND: 'Brunei Dollar',
+  BOB: 'Bolivian Boliviano',
+  BRL: 'Brazilian Real',
+  BSD: 'Bahamian Dollar',
+  BTN: 'Bhutanese Ngultrum',
+  BWP: 'Botswana Pula',
+  BYN: 'Belarusian Ruble',
+  BZD: 'Belize Dollar',
+  CAD: 'Canadian Dollar',
+  CDF: 'Congolese Franc',
+  CHF: 'Swiss Franc',
+  CLP: 'Chilean Peso',
+  CNY: 'Chinese Yuan',
+  COP: 'Colombian Peso',
+  CRC: 'Costa Rican Colon',
+  CUP: 'Cuban Peso',
+  CVE: 'Cape Verdean Escudo',
+  CZK: 'Czech Koruna',
+  DJF: 'Djiboutian Franc',
+  DKK: 'Danish Krone',
+  DOP: 'Dominican Peso',
+  DZD: 'Algerian Dinar',
+  EGP: 'Egyptian Pound',
+  ERN: 'Eritrean Nakfa',
+  ETB: 'Ethiopian Birr',
+  EUR: 'Euro',
+  FJD: 'Fijian Dollar',
+  GBP: 'British Pound',
+  GEL: 'Georgian Lari',
+  GHS: 'Ghanaian Cedi',
+  GMD: 'Gambian Dalasi',
+  GNF: 'Guinean Franc',
+  GTQ: 'Guatemalan Quetzal',
+  HKD: 'Hong Kong Dollar',
+  HNL: 'Honduran Lempira',
+  HTG: 'Haitian Gourde',
+  HUF: 'Hungarian Forint',
+  IDR: 'Indonesian Rupiah',
+  ILS: 'Israeli New Shekel',
+  INR: 'Indian Rupee',
+  IQD: 'Iraqi Dinar',
+  IRR: 'Iranian Rial',
+  ISK: 'Icelandic Krona',
+  JMD: 'Jamaican Dollar',
+  JOD: 'Jordanian Dinar',
+  JPY: 'Japanese Yen',
+  KES: 'Kenyan Shilling',
+  KGS: 'Kyrgyzstani Som',
+  KHR: 'Cambodian Riel',
+  KMF: 'Comorian Franc',
+  KRW: 'South Korean Won',
+  KWD: 'Kuwaiti Dinar',
+  KZT: 'Kazakhstani Tenge',
+  LAK: 'Lao Kip',
+  LBP: 'Lebanese Pound',
+  LKR: 'Sri Lankan Rupee',
+  LYD: 'Libyan Dinar',
+  MAD: 'Moroccan Dirham',
+  MDL: 'Moldovan Leu',
+  MGA: 'Malagasy Ariary',
+  MKD: 'Macedonian Denar',
+  MMK: 'Myanmar Kyat',
+  MNT: 'Mongolian Tugrik',
+  MOP: 'Macanese Pataca',
+  MUR: 'Mauritian Rupee',
+  MVR: 'Maldivian Rufiyaa',
+  MWK: 'Malawian Kwacha',
+  MXN: 'Mexican Peso',
+  MYR: 'Malaysian Ringgit',
+  MZN: 'Mozambican Metical',
+  NAD: 'Namibian Dollar',
+  NGN: 'Nigerian Naira',
+  NOK: 'Norwegian Krone',
+  NPR: 'Nepalese Rupee',
+  NZD: 'New Zealand Dollar',
+  OMR: 'Omani Rial',
+  PAB: 'Panamanian Balboa',
+  PEN: 'Peruvian Sol',
+  PHP: 'Philippine Peso',
+  PKR: 'Pakistani Rupee',
+  PLN: 'Polish Zloty',
+  PYG: 'Paraguayan Guarani',
+  QAR: 'Qatari Riyal',
+  RON: 'Romanian Leu',
+  RSD: 'Serbian Dinar',
+  RUB: 'Russian Ruble',
+  RWF: 'Rwandan Franc',
+  SAR: 'Saudi Riyal',
+  SEK: 'Swedish Krona',
+  SGD: 'Singapore Dollar',
+  THB: 'Thai Baht',
+  TJS: 'Tajikistani Somoni',
+  TMT: 'Turkmenistani Manat',
+  TND: 'Tunisian Dinar',
+  TRY: 'Turkish Lira',
+  TWD: 'New Taiwan Dollar',
+  TZS: 'Tanzanian Shilling',
+  UAH: 'Ukrainian Hryvnia',
+  USD: 'United States Dollar',
+  UYU: 'Uruguayan Peso',
+  UZS: 'Uzbekistani Som',
+  VND: 'Vietnamese Dong',
+  XAF: 'Central African CFA Franc',
+  XOF: 'West African CFA Franc',
+  ZAR: 'South African Rand',
+  ZMW: 'Zambian Kwacha'
+};
+
+const POPULAR_CURRENCIES = ['USD', 'EUR', 'RUB', 'GBP', 'CNY', 'JPY', 'CHF', 'KZT', 'TRY', 'UAH', 'PLN', 'CAD'];
+const CURRENCY_API = 'https://api.frankfurter.dev/v2';
+
 const DEFAULTS = {
   chatInput: '',
   selectedQuote: '',
@@ -29,6 +158,14 @@ const DEFAULTS = {
   translateOutput: '',
   fromLang: 'auto',
   toLang: 'ru',
+  currencyAmount: '1',
+  currencyFrom: 'USD',
+  currencyTo: 'EUR',
+  currencyRatesBase: '',
+  currencyRatesDate: '',
+  currencyUpdatedAt: 0,
+  currencyRates: {},
+  currencyCurrencies: {},
   totalCopies: 0,
   theme: 'white-green',
   language: 'en',
@@ -60,6 +197,12 @@ const translateOutput = document.getElementById('translateOutput');
 const translateLoading = document.getElementById('translateLoading');
 const fromLang = document.getElementById('fromLang');
 const toLang = document.getElementById('toLang');
+const currencyAmount = document.getElementById('currencyAmount');
+const currencyFrom = document.getElementById('currencyFrom');
+const currencyTo = document.getElementById('currencyTo');
+const currencyResult = document.getElementById('currencyResult');
+const currencyRates = document.getElementById('currencyRates');
+const currencyMeta = document.getElementById('currencyMeta');
 const savedList = document.getElementById('savedList');
 const watermark = document.getElementById('watermark');
 const watermarkToggle = document.getElementById('watermarkToggle');
@@ -82,6 +225,7 @@ let activeTranslateRequestId = null;
 let translateLoadingTimer = null;
 let translateAutoTimer = null;
 let stopButtonLockedUntil = 0;
+let currencyLoadToken = 0;
 
 const I18N = {
   en: {
@@ -102,6 +246,8 @@ const I18N = {
     lang_pl: 'Polski',
     translate_input: 'Enter text',
     translate_output: 'Translation',
+    currency_amount: 'Amount',
+    currency_refresh: 'Refresh rates',
     watermark: 'Watermark',
     style: 'Style',
     enabled: 'Enabled',
@@ -145,6 +291,8 @@ const I18N = {
     lang_pl: 'Polski',
     translate_input: 'Введите текст',
     translate_output: 'Перевод',
+    currency_amount: 'Сумма',
+    currency_refresh: 'Обновить курсы',
     watermark: 'Ватермарка',
     style: 'Стиль',
     enabled: 'Включено',
@@ -177,6 +325,8 @@ function loadState() {
     const loaded = { ...DEFAULTS, ...JSON.parse(localStorage.getItem('helpsense.desktop') || '{}') };
     if (!Array.isArray(loaded.savedChats)) loaded.savedChats = [];
     if (!Array.isArray(loaded.chatMessages)) loaded.chatMessages = [];
+    if (!loaded.currencyRates || typeof loaded.currencyRates !== 'object') loaded.currencyRates = {};
+    loaded.currencyCurrencies = normalizeCurrencies(loaded.currencyCurrencies || {});
     return loaded;
   } catch {
     localStorage.removeItem('helpsense.desktop');
@@ -634,6 +784,216 @@ function applyTheme() {
   document.documentElement.style.setProperty('--sense', '#9dff47');
 }
 
+function currencyName(code) {
+  const currencies = state.currencyCurrencies && Object.keys(normalizeCurrencies(state.currencyCurrencies)).length
+    ? normalizeCurrencies(state.currencyCurrencies)
+    : FALLBACK_CURRENCIES;
+  const value = currencies[code] || FALLBACK_CURRENCIES[code] || code;
+  if (typeof value === 'string') return value;
+  if (value && typeof value === 'object') {
+    return value.name || value.title || value.description || FALLBACK_CURRENCIES[code] || code;
+  }
+  return String(value || code);
+}
+
+function currencyCodes() {
+  const merged = { ...FALLBACK_CURRENCIES, ...normalizeCurrencies(state.currencyCurrencies || {}) };
+  return Object.keys(merged).sort((a, b) => {
+    const favorite = POPULAR_CURRENCIES.indexOf(a) - POPULAR_CURRENCIES.indexOf(b);
+    if (POPULAR_CURRENCIES.includes(a) && POPULAR_CURRENCIES.includes(b)) return favorite;
+    if (POPULAR_CURRENCIES.includes(a)) return -1;
+    if (POPULAR_CURRENCIES.includes(b)) return 1;
+    return a.localeCompare(b);
+  });
+}
+
+function normalizeCurrencies(raw) {
+  const normalized = {};
+  if (Array.isArray(raw)) {
+    raw.forEach(item => {
+      const code = String(item?.iso_code || item?.code || item?.currency || '').toUpperCase();
+      if (!code) return;
+      normalized[code] = item?.name || item?.title || FALLBACK_CURRENCIES[code] || code;
+    });
+    return normalized;
+  }
+
+  if (raw && typeof raw === 'object') {
+    Object.entries(raw).forEach(([key, value]) => {
+      const keyLooksLikeCode = /^[A-Za-z]{3}$/.test(String(key));
+      const code = String(keyLooksLikeCode ? key : (value?.iso_code || value?.code || value?.currency || key)).toUpperCase();
+      if (!/^[A-Z]{3}$/.test(code)) return;
+      if (!code) return;
+      normalized[code] = typeof value === 'string'
+        ? value
+        : (value?.name || value?.title || value?.description || FALLBACK_CURRENCIES[code] || code);
+    });
+  }
+  return normalized;
+}
+
+function normalizeRates(raw, base) {
+  const rates = { [base]: 1 };
+  let date = '';
+
+  if (Array.isArray(raw)) {
+    raw.forEach(item => {
+      const quote = String(item?.quote || item?.currency || '').toUpperCase();
+      const rate = Number(item?.rate);
+      if (!quote || !Number.isFinite(rate)) return;
+      rates[quote] = rate;
+      if (!date && item?.date) date = item.date;
+    });
+    return { rates, date };
+  }
+
+  if (raw && typeof raw === 'object') {
+    if (raw.date) date = raw.date;
+    Object.entries(raw.rates || raw.quotes || {}).forEach(([quote, rate]) => {
+      const number = Number(rate);
+      if (Number.isFinite(number)) rates[String(quote).toUpperCase()] = number;
+    });
+    if (raw.quote && raw.rate) {
+      const number = Number(raw.rate);
+      if (Number.isFinite(number)) rates[String(raw.quote).toUpperCase()] = number;
+    }
+  }
+
+  return { rates, date };
+}
+
+function renderCurrencyOptions() {
+  const codes = currencyCodes();
+  const selectedFrom = state.currencyFrom || DEFAULTS.currencyFrom;
+  const selectedTo = state.currencyTo || DEFAULTS.currencyTo;
+  const options = codes.map(code => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = `${code} - ${currencyName(code)}`;
+    return option;
+  });
+  currencyFrom.replaceChildren(...options);
+  currencyTo.replaceChildren(...options.map(option => option.cloneNode(true)));
+  currencyFrom.value = codes.includes(selectedFrom) ? selectedFrom : DEFAULTS.currencyFrom;
+  currencyTo.value = codes.includes(selectedTo) ? selectedTo : DEFAULTS.currencyTo;
+  state.currencyFrom = currencyFrom.value;
+  state.currencyTo = currencyTo.value;
+}
+
+function formatCurrencyNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return '0';
+  return new Intl.NumberFormat(undefined, {
+    maximumFractionDigits: Math.abs(number) >= 100 ? 2 : 6
+  }).format(number);
+}
+
+function currentCurrencyRate(to = state.currencyTo) {
+  if (state.currencyFrom === to) return 1;
+  return Number(state.currencyRates?.[to]) || 0;
+}
+
+function updateCurrencyResult() {
+  const amount = Math.max(0, Number(currencyAmount.value || 0));
+  const rate = currentCurrencyRate();
+  const converted = amount * rate;
+  const from = state.currencyFrom;
+  const to = state.currencyTo;
+  currencyResult.textContent = rate
+    ? `${formatCurrencyNumber(amount)} ${from} = ${formatCurrencyNumber(converted)} ${to}`
+    : `No rate for ${from} -> ${to}`;
+  renderCurrencyRates();
+}
+
+function renderCurrencyRates() {
+  const targets = POPULAR_CURRENCIES
+    .filter(code => code !== state.currencyFrom)
+    .concat(currencyCodes().filter(code => code !== state.currencyFrom && !POPULAR_CURRENCIES.includes(code)))
+    .slice(0, 24);
+
+  currencyRates.replaceChildren(...targets.map(code => {
+    const rate = currentCurrencyRate(code);
+    const item = document.createElement('button');
+    item.className = 'currency-rate';
+    item.type = 'button';
+    item.disabled = !rate;
+    item.innerHTML = `<strong>${code}</strong><span>${escapeHtml(currencyName(code))}</span><em>${rate ? formatCurrencyNumber(rate) : '...'}</em>`;
+    item.addEventListener('click', () => {
+      state.currencyTo = code;
+      currencyTo.value = code;
+      save();
+      updateCurrencyResult();
+    });
+    return item;
+  }));
+}
+
+async function loadCurrencies() {
+  state.currencyCurrencies = normalizeCurrencies(state.currencyCurrencies || {});
+  const savedCount = Object.keys(state.currencyCurrencies || {}).length;
+  if (savedCount > Object.keys(FALLBACK_CURRENCIES).length) {
+    renderCurrencyOptions();
+    return;
+  }
+  if (savedCount) renderCurrencyOptions();
+  try {
+    const response = await fetch(`${CURRENCY_API}/currencies`);
+    if (!response.ok) throw new Error('Currency list failed');
+    const currencies = normalizeCurrencies(await response.json());
+    if (Object.keys(currencies).length) {
+      state.currencyCurrencies = currencies;
+      renderCurrencyOptions();
+      save();
+    }
+  } catch {
+    state.currencyCurrencies = { ...FALLBACK_CURRENCIES };
+    renderCurrencyOptions();
+  }
+}
+
+async function refreshCurrencyRates(force = false) {
+  const requestId = ++currencyLoadToken;
+  const base = state.currencyFrom || DEFAULTS.currencyFrom;
+  const cacheAge = Date.now() - Number(state.currencyUpdatedAt || 0);
+  const hasFreshCache = cacheAge > 0 && cacheAge < 6 * 60 * 60 * 1000;
+  if (!force && hasFreshCache && state.currencyRatesBase === base && Object.keys(state.currencyRates || {}).length) {
+    updateCurrencyResult();
+    currencyMeta.textContent = state.currencyRatesDate ? `Rates date: ${state.currencyRatesDate}` : 'Cached rates';
+    return;
+  }
+
+  currencyMeta.textContent = 'Updating rates...';
+  try {
+    const response = await fetch(`${CURRENCY_API}/rates?base=${encodeURIComponent(base)}`);
+    if (!response.ok) throw new Error('Rates failed');
+    const data = normalizeRates(await response.json(), base);
+    if (!Object.keys(data.rates).some(code => code !== base)) throw new Error('Rates empty');
+    if (requestId !== currencyLoadToken) return;
+    state.currencyRatesBase = base;
+    state.currencyRatesDate = data.date || formattedDate();
+    state.currencyUpdatedAt = Date.now();
+    state.currencyRates = data.rates;
+    save();
+    updateCurrencyResult();
+    currencyMeta.textContent = `Rates date: ${state.currencyRatesDate}`;
+    setStatus('Currency rates updated');
+  } catch {
+    if (requestId !== currencyLoadToken) return;
+    currencyMeta.textContent = Object.keys(state.currencyRates || {}).length
+      ? `Offline cache: ${state.currencyRatesDate || 'saved'}`
+      : 'Rates unavailable';
+    updateCurrencyResult();
+    setStatus('Currency rates unavailable');
+  }
+}
+
+function renderCurrency() {
+  currencyAmount.value = state.currencyAmount || DEFAULTS.currencyAmount;
+  renderCurrencyOptions();
+  updateCurrencyResult();
+  currencyMeta.textContent = state.currencyRatesDate ? `Rates date: ${state.currencyRatesDate}` : 'Loading rates...';
+}
+
 function renderWatermark() {
   const template = state.watermarkText || DEFAULTS.watermarkText;
   watermark.textContent = template
@@ -842,6 +1202,7 @@ function render() {
   renderSendButton();
   renderChat();
   renderSaved();
+  renderCurrency();
   renderWatermark();
   applyLanguage();
 }
@@ -886,6 +1247,7 @@ document.querySelectorAll('.tab').forEach(button => {
     document.querySelectorAll('.tab').forEach(tab => tab.classList.toggle('active', tab === button));
     document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
     document.getElementById(`view-${button.dataset.tab}`).classList.add('active');
+    if (button.dataset.tab === 'currency') refreshCurrencyRates();
   });
 });
 
@@ -1027,6 +1389,36 @@ toLang.addEventListener('change', event => {
   scheduleAutoTranslate();
   save();
 });
+
+currencyAmount.addEventListener('input', event => {
+  state.currencyAmount = event.target.value;
+  save();
+  updateCurrencyResult();
+});
+
+currencyFrom.addEventListener('change', event => {
+  state.currencyFrom = event.target.value;
+  save();
+  refreshCurrencyRates(true);
+});
+
+currencyTo.addEventListener('change', event => {
+  state.currencyTo = event.target.value;
+  save();
+  updateCurrencyResult();
+});
+
+document.getElementById('swapCurrency').addEventListener('click', () => {
+  const from = state.currencyFrom;
+  state.currencyFrom = state.currencyTo;
+  state.currencyTo = from;
+  currencyFrom.value = state.currencyFrom;
+  currencyTo.value = state.currencyTo;
+  save();
+  refreshCurrencyRates(true);
+});
+
+document.getElementById('refreshCurrency').addEventListener('click', () => refreshCurrencyRates(true));
 
 watermarkText.addEventListener('input', event => {
   state.watermarkText = event.target.value;
@@ -1204,16 +1596,26 @@ document.addEventListener('keydown', event => {
 });
 
 setInterval(renderWatermark, 1000);
+setInterval(() => refreshCurrencyRates(), 30 * 60 * 1000);
 applyTheme();
 renderThemes();
 render();
-window.helpsense?.loadAppState().then(saved => {
-  if (!saved || typeof saved !== 'object') return;
-  Object.assign(state, { ...DEFAULTS, ...saved });
-  if (!Array.isArray(state.savedChats)) state.savedChats = [];
-  if (!Array.isArray(state.chatMessages)) state.chatMessages = [];
-  state.isThinking = false;
-  applyTheme();
-  renderThemes();
-  render();
-});
+const savedStatePromise = window.helpsense?.loadAppState?.();
+if (savedStatePromise) {
+  savedStatePromise.then(saved => {
+    if (!saved || typeof saved !== 'object') return;
+    Object.assign(state, { ...DEFAULTS, ...saved });
+    if (!Array.isArray(state.savedChats)) state.savedChats = [];
+    if (!Array.isArray(state.chatMessages)) state.chatMessages = [];
+    if (!state.currencyRates || typeof state.currencyRates !== 'object') state.currencyRates = {};
+    state.currencyCurrencies = normalizeCurrencies(state.currencyCurrencies || {});
+    state.isThinking = false;
+    applyTheme();
+    renderThemes();
+    render();
+  }).finally(() => {
+    loadCurrencies().then(() => refreshCurrencyRates());
+  });
+} else {
+  loadCurrencies().then(() => refreshCurrencyRates());
+}

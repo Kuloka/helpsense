@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.openai.com https://text.pollinations.ai http://127.0.0.1:11434;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https://api.openai.com https://text.pollinations.ai https://api.frankfurter.dev http://127.0.0.1:11434;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>helpsense</title>
     <link rel="stylesheet" href="styles.css">
@@ -24,6 +24,9 @@
         </button>
         <button class="tab" type="button" data-tab="translate" title="Translator" aria-label="Translator">
           <svg viewBox="0 0 32 32"><path d="M4 7h14M11 4v3M8 11c1.5 3.5 4.8 6.4 9 7.8"></path><path d="M16 11c-1.2 3.8-4.8 7.2-10 9"></path><path d="M18 28l2-5h6l2 5M21 20l2-5 2 5"></path></svg>
+        </button>
+        <button class="tab" type="button" data-tab="currency" title="Currency" aria-label="Currency">
+          <span class="currency-tab-icon" aria-hidden="true"></span>
         </button>
         <button class="tab" type="button" data-tab="misc" title="Misc" aria-label="Misc">
           <svg viewBox="0 0 32 32"><path d="M7 8h18M7 16h18M7 24h18"></path><circle cx="10" cy="8" r="2"></circle><circle cx="22" cy="16" r="2"></circle><circle cx="14" cy="24" r="2"></circle></svg>
@@ -128,6 +131,28 @@
             </div>
           </div>
           <button class="hidden-action" id="translateAi" type="button" aria-hidden="true" tabindex="-1">Translate</button>
+        </section>
+      </section>
+
+      <section class="view" id="view-currency">
+        <section class="currency-screen">
+          <div class="currency-panel">
+            <label class="currency-amount">
+              <span data-i18n="currency_amount">Amount</span>
+              <input class="currency-input" id="currencyAmount" type="number" min="0" step="any" inputmode="decimal" value="1">
+            </label>
+            <div class="currency-selects">
+              <select class="input" id="currencyFrom"></select>
+              <button class="swap-button currency-swap" id="swapCurrency" type="button" title="Swap">↔</button>
+              <select class="input" id="currencyTo"></select>
+            </div>
+            <div class="currency-result" id="currencyResult">1.00 USD = 0.00 EUR</div>
+            <div class="currency-actions">
+              <button class="button primary" id="refreshCurrency" type="button" data-i18n="currency_refresh">Refresh rates</button>
+              <span id="currencyMeta">Loading rates...</span>
+            </div>
+          </div>
+          <div class="currency-rates" id="currencyRates"></div>
         </section>
       </section>
 
