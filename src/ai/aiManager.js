@@ -228,10 +228,13 @@ function cleanAssistantText(text) {
 
 function extractUserFacingJsonAnswer(raw) {
   try {
-    const parsed = JSON.parse(String(raw || '').trim());
+    const source = String(raw || '').trim();
+    const parsed = JSON.parse(source);
     if (!parsed || typeof parsed !== 'object') return null;
+    if ('translation' in parsed && typeof parsed.translation === 'string') return parsed.translation.trim();
     if (!('reasoning' in parsed) && !('analysis' in parsed) && !('role' in parsed)) return null;
     const candidates = [
+      parsed.translation,
       parsed.final,
       parsed.answer,
       parsed.content,
@@ -242,6 +245,12 @@ function extractUserFacingJsonAnswer(raw) {
     const answer = candidates.find(value => typeof value === 'string' && value.trim());
     return answer ? cleanAssistantText(answer) : '';
   } catch {
+    const source = String(raw || '').trim();
+    const jsonStart = source.indexOf('{');
+    const jsonEnd = source.lastIndexOf('}');
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      return extractUserFacingJsonAnswer(source.slice(jsonStart, jsonEnd + 1));
+    }
     return null;
   }
 }

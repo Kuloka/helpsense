@@ -572,10 +572,13 @@ function cleanAssistantText(text) {
 
 function extractUserFacingJsonAnswer(raw) {
   try {
-    const parsed = JSON.parse(String(raw || '').trim());
+    const source = String(raw || '').trim();
+    const parsed = JSON.parse(source);
     if (!parsed || typeof parsed !== 'object') return null;
+    if ('translation' in parsed && typeof parsed.translation === 'string') return parsed.translation.trim();
     if (!('reasoning' in parsed) && !('analysis' in parsed) && !('role' in parsed)) return null;
     const candidates = [
+      parsed.translation,
       parsed.final,
       parsed.answer,
       parsed.content,
@@ -586,6 +589,12 @@ function extractUserFacingJsonAnswer(raw) {
     const answer = candidates.find(value => typeof value === 'string' && value.trim());
     return answer ? cleanAssistantText(answer) : '';
   } catch {
+    const source = String(raw || '').trim();
+    const jsonStart = source.indexOf('{');
+    const jsonEnd = source.lastIndexOf('}');
+    if (jsonStart >= 0 && jsonEnd > jsonStart) {
+      return extractUserFacingJsonAnswer(source.slice(jsonStart, jsonEnd + 1));
+    }
     return null;
   }
 }
@@ -699,6 +708,24 @@ function eraseTranslateOutput() {
       translateOutput.placeholder = t('translate_output');
     }
   }, 14);
+}
+
+function cleanTranslationText(text, sourceText = '') {
+  let value = cleanAssistantText(text);
+  const jsonAnswer = extractUserFacingJsonAnswer(value);
+  if (jsonAnswer !== null) value = jsonAnswer;
+  value = String(value || '')
+    .replace(/^\s*```(?:json|text)?\s*/i, '')
+    .replace(/\s*```\s*$/i, '')
+    .replace(/^\s*(?:translation|translated text|перевод)\s*:\s*/i, '')
+    .replace(/\s*\}\s*!?\s*$/g, '')
+    .trim();
+
+  const source = String(sourceText || '').trim();
+  if (source && value.startsWith(source) && value.length > source.length) {
+    value = value.slice(source.length).replace(/^[\s:;,.!?}\]-]+/, '').trim() || value;
+  }
+  return value;
 }
 
 async function rememberApiKey() {
@@ -1863,7 +1890,7 @@ document.getElementById('translateAi').addEventListener('click', async () => {
     translateOutput.placeholder = t('translate_output');
     return setStatus(response?.error || 'Translation failed');
   }
-  const translatedText = String(response.text || '');
+  const translatedText = cleanTranslationText(response.text || '', state.translateInput);
   const translated = translatedText.trim() === '...' ? '' : translatedText;
   state.translateOutput = translated;
   translateOutput.placeholder = translated ? '' : t('translate_output');

@@ -22,7 +22,15 @@ function taskPrompt(payload) {
       'Use simple bullet lists for features/pros/cons/steps/examples.',
       'Do not use bold formatting, highlight syntax, or tables unless asked.'
     ].join('\n'),
-    translate: `Translate only. Source language: ${languageName(payload.from || 'auto')}. Target language: ${languageName(payload.to || 'en')}. Preserve meaning and formatting. If the user made small typos, missed letters, wrong keyboard layout, or informal spelling, infer the intended meaning from context and translate the corrected meaning naturally. Return only the translated text, no explanations.`,
+    translate: [
+      'You are a strict translation engine.',
+      `Source language: ${languageName(payload.from || 'auto')}. Target language: ${languageName(payload.to || 'en')}.`,
+      'Translate the input text into the target language, even when source and target are not Russian or English.',
+      'Do not answer the text, do not explain it, do not repeat the source unless it is already correctly written in the target language.',
+      'Preserve meaning, names, numbers, and simple formatting.',
+      'If the user made small typos, missed letters, wrong keyboard layout, or informal spelling, infer the intended meaning and translate naturally.',
+      'Return JSON only, exactly like {"translation":"translated text"}. No markdown, no extra text, no trailing symbols.'
+    ].join('\n'),
     polite: 'Rewrite the text to be polite and calm. Preserve meaning. Output only the rewritten text.',
     shorten: 'Shorten the text while preserving the important meaning. Output only the shortened text.',
     summarize: 'Summarize the text into concise bullet points. Output only the summary.',
