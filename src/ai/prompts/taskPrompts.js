@@ -27,6 +27,17 @@ function taskPrompt(payload) {
     shorten: 'Shorten the text while preserving the important meaning. Output only the shortened text.',
     summarize: 'Summarize the text into concise bullet points. Output only the summary.',
     check: 'Check tone, clarity, and possible misunderstandings. Output practical feedback only.',
+    code_check: [
+      `Review the submitted code. Declared language: ${payload.from || 'auto'}. If auto, infer the language.`,
+      'Support any programming language, markup, query language, shell script, config format, and pseudocode as well as possible.',
+      'Find real bugs, syntax errors, runtime errors, unsafe behavior, broken logic, missing imports, wrong APIs, type mistakes, race conditions, security issues, and likely edge-case failures.',
+      'Mark severity as "critical" only when the code is likely to fail, produce wrong results, crash, corrupt data, expose secrets, or create a serious security issue.',
+      'Mark severity as "warning" for non-critical issues: style, maintainability, unclear naming, weak validation, inefficient code, minor compatibility risks, or suspicious but not certainly broken code.',
+      'Return JSON only, with no markdown and no explanation outside JSON.',
+      'Schema: {"findings":[{"line":number,"severity":"critical"|"warning","message":"short issue","fix":"short fix"}]}.',
+      'Return at most 8 findings. Prefer the most important issues. Keep message and fix short.',
+      'Use 1-based line numbers. If there are no issues, return {"findings":[]}.'
+    ].join('\n'),
     translate_en: 'Translate the text to English. Preserve formatting. Output only the translation.',
     translate_ru: 'Translate the text to Russian. Preserve formatting. Output only the translation.'
   };

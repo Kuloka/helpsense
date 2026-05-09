@@ -166,6 +166,9 @@ const DEFAULTS = {
   currencyUpdatedAt: 0,
   currencyRates: {},
   currencyCurrencies: {},
+  codeInput: '',
+  codeLanguage: 'auto',
+  codeFindings: [],
   totalCopies: 0,
   theme: 'white-green',
   language: 'en',
@@ -203,6 +206,11 @@ const currencyTo = document.getElementById('currencyTo');
 const currencyResult = document.getElementById('currencyResult');
 const currencyRates = document.getElementById('currencyRates');
 const currencyMeta = document.getElementById('currencyMeta');
+const codeInput = document.getElementById('codeInput');
+const codeLanguage = document.getElementById('codeLanguage');
+const codeFindings = document.getElementById('codeFindings');
+const codeLineNumbers = document.getElementById('codeLineNumbers');
+const codeHighlights = document.getElementById('codeHighlights');
 const savedList = document.getElementById('savedList');
 const watermark = document.getElementById('watermark');
 const watermarkToggle = document.getElementById('watermarkToggle');
@@ -226,6 +234,7 @@ let translateLoadingTimer = null;
 let translateAutoTimer = null;
 let stopButtonLockedUntil = 0;
 let currencyLoadToken = 0;
+let codeCheckRequestId = null;
 
 const I18N = {
   en: {
@@ -341,6 +350,11 @@ function save() {
 
 function t(key) {
   return (I18N[state.language] || I18N.en)[key] || I18N.en[key] || key;
+}
+
+function codeCheckButtonText(isLoading = false) {
+  if (state.language === 'ru') return isLoading ? 'Проверка...' : 'Проверить';
+  return isLoading ? 'Checking...' : 'Check';
 }
 
 function applyLanguage() {
@@ -994,6 +1008,155 @@ function renderCurrency() {
   currencyMeta.textContent = state.currencyRatesDate ? `Rates date: ${state.currencyRatesDate}` : 'Loading rates...';
 }
 
+function normalizeFinding(item) {
+  const severity = String(item?.severity || '').toLowerCase() === 'critical' ? 'critical' : 'warning';
+  const line = Math.max(1, Number.parseInt(item?.line, 10) || 1);
+  return {
+    line,
+    severity,
+    message: String(item?.message || item?.problem || '').slice(0, 260),
+    fix: String(item?.fix || item?.suggestion || '').slice(0, 320)
+  };
+}
+
+function parseCodeFindings(text) {
+  const raw = String(text || '').trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '');
+  try {
+    const parsed = JSON.parse(raw);
+    const list = Array.isArray(parsed) ? parsed : parsed.findings;
+    if (!Array.isArray(list)) return [];
+    return list.map(normalizeFinding).filter(item => item.message);
+  } catch {
+    return raw
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(0, 12)
+      .map((line, index) => normalizeFinding({
+        line: index + 1,
+        severity: /critical|error|bug|fatal/i.test(line) ? 'critical' : 'warning',
+        message: line
+      }));
+  }
+}
+
+function localCodeFindings(code, language = 'auto') {
+  const lang = String(language || '').toLowerCase();
+  if (!['auto', 'javascript', 'typescript'].includes(lang)) return [];
+  const lines = String(code || '').split(/\r?\n/);
+  const findings = [];
+  const seen = new Set();
+  const add = (line, severity, message, fix) => {
+    const key = `${line}:${severity}:${message}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    findings.push(normalizeFinding({ line, severity, message, fix }));
+  };
+
+  lines.forEach((line, index) => {
+    const number = index + 1;
+    if (/\bfor\s*\([^;]+;\s*\w+\s*<=\s*\w+\.length\b/.test(line)) {
+      add(number, 'critical', 'Цикл идёт до length включительно и выйдет за границы массива.', 'Используй i < items.length.');
+    }
+    if (/\bif\s*\([^)]*[^=!<>]=[^=][^)]*\)/.test(line)) {
+      add(number, 'critical', 'В условии используется присваивание вместо сравнения.', 'Используй === или проверь булево значение напрямую.');
+    }
+    if (/[^=!<>]==[^=]/.test(line)) {
+      add(number, 'warning', 'Нестрогое сравнение может дать неожиданный результат.', 'Используй ===.');
+    }
+    if (/const\s+\w+\s*=\s*null\s*;?/.test(line)) {
+      add(number, 'critical', 'Переменная получает null и ниже может вызвать ошибку при чтении свойства.', 'Перед использованием проверь значение или передай объект.');
+    }
+    if (/\{\s*title\s*:\s*["'][^"']+["']\s*\}/.test(line) && /\.price\b/.test(code)) {
+      add(number, 'critical', 'У элемента нет price, расчёт получит undefined.', 'Добавь price или значение по умолчанию.');
+    }
+  });
+
+  const nullCustomerLine = lines.findIndex(line => /const\s+customer\s*=\s*null/.test(line)) + 1;
+  lines.forEach((line, index) => {
+    if (/customer\.name/.test(line) && nullCustomerLine) {
+      add(index + 1, 'critical', 'customer может быть null, обращение к name упадёт.', 'Проверь customer перед чтением name.');
+    }
+    if (/items\[\s*0\s*\]/.test(line)) {
+      add(index + 1, 'warning', 'Первый элемент используется без проверки, что массив не пустой.', 'Проверь items.length.');
+    }
+  });
+
+  return findings;
+}
+
+function mergeCodeFindings(primary, secondary) {
+  const result = [];
+  const seen = new Set();
+  [...primary, ...secondary].forEach(item => {
+    const normalized = normalizeFinding(item);
+    const key = `${normalized.line}:${normalized.severity}:${normalized.message}`;
+    if (seen.has(key) || !normalized.message) return;
+    seen.add(key);
+    result.push(normalized);
+  });
+  return result.slice(0, 12).sort((a, b) => a.line - b.line || (a.severity === 'critical' ? -1 : 1));
+}
+
+function renderCodeCheck() {
+  if (document.activeElement !== codeInput) codeInput.value = state.codeInput || '';
+  codeLanguage.value = state.codeLanguage || DEFAULTS.codeLanguage;
+  const findings = Array.isArray(state.codeFindings) ? state.codeFindings : [];
+  renderCodeEditorDecorations(findings);
+
+  if (!findings.length) {
+    codeFindings.innerHTML = '<div class="code-empty">Пока ошибок нет. Вставь код и нажми проверку.</div>';
+    return;
+  }
+
+  codeFindings.replaceChildren(...findings.map(item => {
+    const card = document.createElement('div');
+    card.className = `code-finding ${item.severity}`;
+    const badge = document.createElement('strong');
+    badge.textContent = item.severity === 'critical' ? 'Критично' : 'Предупреждение';
+    const text = document.createElement('span');
+    const line = document.createElement('b');
+    line.className = 'code-finding-line';
+    line.textContent = item.line;
+    const message = document.createElement('span');
+    message.textContent = item.message;
+    text.append(line, message);
+    card.append(badge, text);
+    if (item.fix) {
+      const fix = document.createElement('em');
+      fix.textContent = item.fix;
+      card.appendChild(fix);
+    }
+    return card;
+  }));
+}
+
+function renderCodeEditorDecorations(findings = []) {
+  const lineCount = Math.max(1, (state.codeInput || codeInput.value || '').split(/\r?\n/).length);
+  codeLineNumbers.textContent = Array.from({ length: lineCount }, (_item, index) => index + 1).join('\n');
+  const active = new Map();
+  findings.forEach(item => {
+    const current = active.get(item.line);
+    if (!current || current.severity !== 'critical') active.set(item.line, item);
+  });
+  codeHighlights.replaceChildren(...Array.from({ length: lineCount }, (_item, index) => {
+    const line = index + 1;
+    const finding = active.get(line);
+    const row = document.createElement('div');
+    row.className = `code-highlight${finding ? ` ${finding.severity}` : ''}`;
+    row.title = finding?.message || '';
+    return row;
+  }));
+  syncCodeEditorScroll();
+}
+
+function syncCodeEditorScroll() {
+  const top = codeInput.scrollTop;
+  codeLineNumbers.scrollTop = top;
+  codeHighlights.style.transform = `translateY(${-top}px)`;
+}
+
 function renderWatermark() {
   const template = state.watermarkText || DEFAULTS.watermarkText;
   watermark.textContent = template
@@ -1198,11 +1361,13 @@ function render() {
   translateOutput.value = state.translateOutput;
   fromLang.value = state.fromLang;
   toLang.value = state.toLang;
+  document.getElementById('checkCode').textContent = codeCheckButtonText(Boolean(codeCheckRequestId));
   renderComposerModes();
   renderSendButton();
   renderChat();
   renderSaved();
   renderCurrency();
+  renderCodeCheck();
   renderWatermark();
   applyLanguage();
 }
@@ -1390,6 +1555,19 @@ toLang.addEventListener('change', event => {
   save();
 });
 
+codeInput.addEventListener('input', event => {
+  state.codeInput = event.target.value;
+  save();
+  renderCodeCheck();
+});
+
+codeInput.addEventListener('scroll', syncCodeEditorScroll);
+
+codeLanguage.addEventListener('change', event => {
+  state.codeLanguage = event.target.value;
+  save();
+});
+
 currencyAmount.addEventListener('input', event => {
   state.currencyAmount = event.target.value;
   save();
@@ -1448,6 +1626,9 @@ document.getElementById('sendChat').addEventListener('click', async () => {
   if (stopTyping()) return;
   if (stopThinking()) return;
   if (!chatInput.value.trim() && !state.selectedQuote) return setStatus('Question is empty');
+  const sendButton = document.getElementById('sendChat');
+  sendButton.classList.add('sending');
+  setTimeout(() => sendButton.classList.remove('sending'), 520);
   const question = chatInput.value.trim() || (state.language === 'ru' ? 'Объясни выделенный фрагмент.' : 'Explain the selected text.');
   const selectedQuoteText = state.selectedQuote;
   state.chatInput = '';
@@ -1574,6 +1755,37 @@ document.getElementById('translateAi').addEventListener('click', async () => {
   typeTextarea(translateOutput, translated, 22);
   save();
   setStatus('Translated');
+});
+
+document.getElementById('checkCode').addEventListener('click', async () => {
+  if (!codeInput.value.trim()) return setStatus('Код пустой');
+  state.codeInput = codeInput.value;
+  state.codeLanguage = codeLanguage.value;
+  const localFindings = localCodeFindings(state.codeInput, state.codeLanguage);
+  state.codeFindings = localFindings;
+  renderCodeCheck();
+  const button = document.getElementById('checkCode');
+  button.disabled = true;
+  button.textContent = codeCheckButtonText(true);
+  const requestId = `code-check-${Date.now()}`;
+  codeCheckRequestId = requestId;
+  setStatus('Проверяю код...');
+  const response = await runAi({
+    requestId,
+    task: 'code_check',
+    text: state.codeInput,
+    language: state.language,
+    from: state.codeLanguage
+  });
+  if (codeCheckRequestId !== requestId) return;
+  codeCheckRequestId = null;
+  button.disabled = false;
+  button.textContent = codeCheckButtonText(false);
+  if (!response?.ok) return setStatus(response?.error || 'Проверка не удалась');
+  state.codeFindings = mergeCodeFindings(localFindings, parseCodeFindings(response.text));
+  save();
+  renderCodeCheck();
+  setStatus(state.codeFindings.length ? 'Ошибки найдены' : 'Ошибок не найдено');
 });
 
 document.getElementById('clearChat').addEventListener('click', clearCurrentChat);

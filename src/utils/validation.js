@@ -15,7 +15,7 @@ function validateUrl(value) {
 
 function normalizeAiPayload(payload) {
   const task = toSafeString(payload?.task, 40);
-  const maxText = task === 'translate' ? 1400 : 3200;
+  const maxText = task === 'translate' ? 1400 : (task === 'code_check' ? 6000 : 3200);
   return {
     requestId: toSafeString(payload?.requestId || `${Date.now()}-${Math.random()}`, 120),
     task,
