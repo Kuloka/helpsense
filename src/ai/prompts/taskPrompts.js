@@ -29,6 +29,7 @@ function taskPrompt(payload) {
     check: 'Check tone, clarity, and possible misunderstandings. Output practical feedback only.',
     code_check: [
       `Review the submitted code. Declared language: ${payload.from || 'auto'}. If auto, infer the language.`,
+      `Write every "message" and "fix" in this UI language: ${payload.language === 'ru' ? 'Russian' : 'English'}.`,
       'Support any programming language, markup, query language, shell script, config format, and pseudocode as well as possible.',
       'Find real bugs, syntax errors, runtime errors, unsafe behavior, broken logic, missing imports, wrong APIs, type mistakes, race conditions, security issues, and likely edge-case failures.',
       'Mark severity as "critical" only when the code is likely to fail, produce wrong results, crash, corrupt data, expose secrets, or create a serious security issue.',

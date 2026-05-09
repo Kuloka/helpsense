@@ -145,6 +145,39 @@ const FALLBACK_CURRENCIES = {
 
 const POPULAR_CURRENCIES = ['USD', 'EUR', 'RUB', 'GBP', 'CNY', 'JPY', 'CHF', 'KZT', 'TRY', 'UAH', 'PLN', 'CAD'];
 const CURRENCY_API = 'https://api.frankfurter.dev/v2';
+const RU_CURRENCY_NAMES = {
+  AUD: 'Австралийский доллар',
+  BRL: 'Бразильский реал',
+  BYN: 'Белорусский рубль',
+  CAD: 'Канадский доллар',
+  CHF: 'Швейцарский франк',
+  CNY: 'Китайский юань',
+  CZK: 'Чешская крона',
+  DKK: 'Датская крона',
+  EUR: 'Евро',
+  GBP: 'Британский фунт',
+  GEL: 'Грузинский лари',
+  HKD: 'Гонконгский доллар',
+  HUF: 'Венгерский форинт',
+  INR: 'Индийская рупия',
+  JPY: 'Японская иена',
+  KGS: 'Киргизский сом',
+  KRW: 'Южнокорейская вона',
+  KZT: 'Казахстанский тенге',
+  MXN: 'Мексиканское песо',
+  NOK: 'Норвежская крона',
+  PLN: 'Польский злотый',
+  RON: 'Румынский лей',
+  RUB: 'Российский рубль',
+  SEK: 'Шведская крона',
+  SGD: 'Сингапурский доллар',
+  THB: 'Тайский бат',
+  TRY: 'Турецкая лира',
+  UAH: 'Украинская гривна',
+  USD: 'Доллар США',
+  UZS: 'Узбекский сум',
+  ZAR: 'Южноафриканский ранд'
+};
 
 const DEFAULTS = {
   chatInput: '',
@@ -357,6 +390,35 @@ function codeCheckButtonText(isLoading = false) {
   return isLoading ? 'Checking...' : 'Check';
 }
 
+function codeCheckText(key) {
+  const ru = state.language === 'ru';
+  const labels = {
+    empty: ru ? 'Пока ошибок нет. Вставь код и нажми проверку.' : 'No issues yet. Paste code and run a check.',
+    autoLanguage: ru ? 'Авто язык' : 'Auto language',
+    placeholder: ru ? 'Вставь код сюда' : 'Paste code here',
+    critical: ru ? 'Критично' : 'Critical',
+    warning: ru ? 'Предупреждение' : 'Warning',
+    emptyStatus: ru ? 'Код пустой' : 'Code is empty',
+    checkingStatus: ru ? 'Проверяю код...' : 'Checking code...',
+    failedStatus: ru ? 'Проверка не удалась' : 'Code check failed',
+    foundStatus: ru ? 'Ошибки найдены' : 'Code issues found',
+    cleanStatus: ru ? 'Ошибок не найдено' : 'No code issues found'
+  };
+  return labels[key] || key;
+}
+
+function applyCodeCheckLanguage() {
+  document.getElementById('checkCode').textContent = codeCheckButtonText(Boolean(codeCheckRequestId));
+  codeLanguage.options[0].textContent = codeCheckText('autoLanguage');
+  codeInput.placeholder = codeCheckText('placeholder');
+  const codeTab = document.querySelector('[data-tab="codecheck"]');
+  if (codeTab) {
+    const title = state.language === 'ru' ? 'Проверка кода' : 'Code check';
+    codeTab.title = title;
+    codeTab.setAttribute('aria-label', title);
+  }
+}
+
 function applyLanguage() {
   document.querySelectorAll('[data-i18n]').forEach(node => {
     node.textContent = t(node.dataset.i18n);
@@ -372,6 +434,8 @@ function applyLanguage() {
   fromLang.value = state.fromLang;
   toLang.value = state.toLang;
   languageSelect.value = state.language;
+  applyCodeCheckLanguage();
+  applyCurrencyLanguage();
 }
 
 function setStatus(text) {
@@ -799,6 +863,7 @@ function applyTheme() {
 }
 
 function currencyName(code) {
+  if (state.language === 'ru' && RU_CURRENCY_NAMES[code]) return RU_CURRENCY_NAMES[code];
   const currencies = state.currencyCurrencies && Object.keys(normalizeCurrencies(state.currencyCurrencies)).length
     ? normalizeCurrencies(state.currencyCurrencies)
     : FALLBACK_CURRENCIES;
@@ -808,6 +873,33 @@ function currencyName(code) {
     return value.name || value.title || value.description || FALLBACK_CURRENCIES[code] || code;
   }
   return String(value || code);
+}
+
+function currencyText(key, data = {}) {
+  const ru = state.language === 'ru';
+  const labels = {
+    noRate: ru ? `Нет курса для ${data.from} -> ${data.to}` : `No rate for ${data.from} -> ${data.to}`,
+    ratesDate: ru ? `Дата курсов: ${data.date}` : `Rates date: ${data.date}`,
+    cachedRates: ru ? 'Курсы из кеша' : 'Cached rates',
+    updating: ru ? 'Обновляю курсы...' : 'Updating rates...',
+    updated: ru ? 'Курсы валют обновлены' : 'Currency rates updated',
+    offline: ru ? `Офлайн-кеш: ${data.date || 'сохранено'}` : `Offline cache: ${data.date || 'saved'}`,
+    unavailable: ru ? 'Курсы недоступны' : 'Rates unavailable',
+    loading: ru ? 'Загрузка курсов...' : 'Loading rates...',
+    currencyTitle: ru ? 'Валюты' : 'Currency',
+    swapTitle: ru ? 'Поменять местами' : 'Swap'
+  };
+  return labels[key] || key;
+}
+
+function applyCurrencyLanguage() {
+  const currencyTab = document.querySelector('[data-tab="currency"]');
+  if (currencyTab) {
+    currencyTab.title = currencyText('currencyTitle');
+    currencyTab.setAttribute('aria-label', currencyText('currencyTitle'));
+  }
+  const swapCurrency = document.getElementById('swapCurrency');
+  if (swapCurrency) swapCurrency.title = currencyText('swapTitle');
 }
 
 function currencyCodes() {
@@ -915,7 +1007,7 @@ function updateCurrencyResult() {
   const to = state.currencyTo;
   currencyResult.textContent = rate
     ? `${formatCurrencyNumber(amount)} ${from} = ${formatCurrencyNumber(converted)} ${to}`
-    : `No rate for ${from} -> ${to}`;
+    : currencyText('noRate', { from, to });
   renderCurrencyRates();
 }
 
@@ -972,11 +1064,13 @@ async function refreshCurrencyRates(force = false) {
   const hasFreshCache = cacheAge > 0 && cacheAge < 6 * 60 * 60 * 1000;
   if (!force && hasFreshCache && state.currencyRatesBase === base && Object.keys(state.currencyRates || {}).length) {
     updateCurrencyResult();
-    currencyMeta.textContent = state.currencyRatesDate ? `Rates date: ${state.currencyRatesDate}` : 'Cached rates';
+    currencyMeta.textContent = state.currencyRatesDate
+      ? currencyText('ratesDate', { date: state.currencyRatesDate })
+      : currencyText('cachedRates');
     return;
   }
 
-  currencyMeta.textContent = 'Updating rates...';
+  currencyMeta.textContent = currencyText('updating');
   try {
     const response = await fetch(`${CURRENCY_API}/rates?base=${encodeURIComponent(base)}`);
     if (!response.ok) throw new Error('Rates failed');
@@ -989,23 +1083,26 @@ async function refreshCurrencyRates(force = false) {
     state.currencyRates = data.rates;
     save();
     updateCurrencyResult();
-    currencyMeta.textContent = `Rates date: ${state.currencyRatesDate}`;
-    setStatus('Currency rates updated');
+    currencyMeta.textContent = currencyText('ratesDate', { date: state.currencyRatesDate });
+    setStatus(currencyText('updated'));
   } catch {
     if (requestId !== currencyLoadToken) return;
     currencyMeta.textContent = Object.keys(state.currencyRates || {}).length
-      ? `Offline cache: ${state.currencyRatesDate || 'saved'}`
-      : 'Rates unavailable';
+      ? currencyText('offline', { date: state.currencyRatesDate })
+      : currencyText('unavailable');
     updateCurrencyResult();
-    setStatus('Currency rates unavailable');
+    setStatus(currencyText('unavailable'));
   }
 }
 
 function renderCurrency() {
+  applyCurrencyLanguage();
   currencyAmount.value = state.currencyAmount || DEFAULTS.currencyAmount;
   renderCurrencyOptions();
   updateCurrencyResult();
-  currencyMeta.textContent = state.currencyRatesDate ? `Rates date: ${state.currencyRatesDate}` : 'Loading rates...';
+  currencyMeta.textContent = state.currencyRatesDate
+    ? currencyText('ratesDate', { date: state.currencyRatesDate })
+    : currencyText('loading');
 }
 
 function normalizeFinding(item) {
@@ -1044,6 +1141,23 @@ function parseCodeFindings(text) {
 function localCodeFindings(code, language = 'auto') {
   const lang = String(language || '').toLowerCase();
   if (!['auto', 'javascript', 'typescript'].includes(lang)) return [];
+  const ru = state.language === 'ru';
+  const text = {
+    loop: ru ? 'Цикл идёт до length включительно и выйдет за границы массива.' : 'Loop uses length inclusively and will go out of bounds.',
+    loopFix: ru ? 'Используй i < items.length.' : 'Use i < items.length.',
+    assign: ru ? 'В условии используется присваивание вместо сравнения.' : 'Assignment is used inside the condition instead of comparison.',
+    assignFix: ru ? 'Используй === или проверь булево значение напрямую.' : 'Use === or check the boolean directly.',
+    loose: ru ? 'Нестрогое сравнение может дать неожиданный результат.' : 'Loose equality can produce unexpected results.',
+    looseFix: ru ? 'Используй ===.' : 'Use ===.',
+    nullValue: ru ? 'Переменная получает null и ниже может вызвать ошибку при чтении свойства.' : 'Variable is set to null and can crash when a property is read later.',
+    nullValueFix: ru ? 'Перед использованием проверь значение или передай объект.' : 'Check the value before use or pass an object.',
+    missingPrice: ru ? 'У элемента нет price, расчёт получит undefined.' : 'Item is missing price, so the calculation gets undefined.',
+    missingPriceFix: ru ? 'Добавь price или значение по умолчанию.' : 'Add price or use a default value.',
+    nullRead: ru ? 'customer может быть null, обращение к name упадёт.' : 'customer can be null, so reading name will crash.',
+    nullReadFix: ru ? 'Проверь customer перед чтением name.' : 'Check customer before reading name.',
+    firstItem: ru ? 'Первый элемент используется без проверки, что массив не пустой.' : 'First item is used without checking that the array is not empty.',
+    firstItemFix: ru ? 'Проверь items.length.' : 'Check items.length.'
+  };
   const lines = String(code || '').split(/\r?\n/);
   const findings = [];
   const seen = new Set();
@@ -1057,29 +1171,29 @@ function localCodeFindings(code, language = 'auto') {
   lines.forEach((line, index) => {
     const number = index + 1;
     if (/\bfor\s*\([^;]+;\s*\w+\s*<=\s*\w+\.length\b/.test(line)) {
-      add(number, 'critical', 'Цикл идёт до length включительно и выйдет за границы массива.', 'Используй i < items.length.');
+      add(number, 'critical', text.loop, text.loopFix);
     }
     if (/\bif\s*\([^)]*[^=!<>]=[^=][^)]*\)/.test(line)) {
-      add(number, 'critical', 'В условии используется присваивание вместо сравнения.', 'Используй === или проверь булево значение напрямую.');
+      add(number, 'critical', text.assign, text.assignFix);
     }
     if (/[^=!<>]==[^=]/.test(line)) {
-      add(number, 'warning', 'Нестрогое сравнение может дать неожиданный результат.', 'Используй ===.');
+      add(number, 'warning', text.loose, text.looseFix);
     }
     if (/const\s+\w+\s*=\s*null\s*;?/.test(line)) {
-      add(number, 'critical', 'Переменная получает null и ниже может вызвать ошибку при чтении свойства.', 'Перед использованием проверь значение или передай объект.');
+      add(number, 'critical', text.nullValue, text.nullValueFix);
     }
     if (/\{\s*title\s*:\s*["'][^"']+["']\s*\}/.test(line) && /\.price\b/.test(code)) {
-      add(number, 'critical', 'У элемента нет price, расчёт получит undefined.', 'Добавь price или значение по умолчанию.');
+      add(number, 'critical', text.missingPrice, text.missingPriceFix);
     }
   });
 
   const nullCustomerLine = lines.findIndex(line => /const\s+customer\s*=\s*null/.test(line)) + 1;
   lines.forEach((line, index) => {
     if (/customer\.name/.test(line) && nullCustomerLine) {
-      add(index + 1, 'critical', 'customer может быть null, обращение к name упадёт.', 'Проверь customer перед чтением name.');
+      add(index + 1, 'critical', text.nullRead, text.nullReadFix);
     }
     if (/items\[\s*0\s*\]/.test(line)) {
-      add(index + 1, 'warning', 'Первый элемент используется без проверки, что массив не пустой.', 'Проверь items.length.');
+      add(index + 1, 'warning', text.firstItem, text.firstItemFix);
     }
   });
 
@@ -1103,10 +1217,11 @@ function renderCodeCheck() {
   if (document.activeElement !== codeInput) codeInput.value = state.codeInput || '';
   codeLanguage.value = state.codeLanguage || DEFAULTS.codeLanguage;
   const findings = Array.isArray(state.codeFindings) ? state.codeFindings : [];
+  applyCodeCheckLanguage();
   renderCodeEditorDecorations(findings);
 
   if (!findings.length) {
-    codeFindings.innerHTML = '<div class="code-empty">Пока ошибок нет. Вставь код и нажми проверку.</div>';
+    codeFindings.innerHTML = `<div class="code-empty">${escapeHtml(codeCheckText('empty'))}</div>`;
     return;
   }
 
@@ -1114,7 +1229,7 @@ function renderCodeCheck() {
     const card = document.createElement('div');
     card.className = `code-finding ${item.severity}`;
     const badge = document.createElement('strong');
-    badge.textContent = item.severity === 'critical' ? 'Критично' : 'Предупреждение';
+    badge.textContent = item.severity === 'critical' ? codeCheckText('critical') : codeCheckText('warning');
     const text = document.createElement('span');
     const line = document.createElement('b');
     line.className = 'code-finding-line';
@@ -1758,7 +1873,7 @@ document.getElementById('translateAi').addEventListener('click', async () => {
 });
 
 document.getElementById('checkCode').addEventListener('click', async () => {
-  if (!codeInput.value.trim()) return setStatus('Код пустой');
+  if (!codeInput.value.trim()) return setStatus(codeCheckText('emptyStatus'));
   state.codeInput = codeInput.value;
   state.codeLanguage = codeLanguage.value;
   const localFindings = localCodeFindings(state.codeInput, state.codeLanguage);
@@ -1769,7 +1884,7 @@ document.getElementById('checkCode').addEventListener('click', async () => {
   button.textContent = codeCheckButtonText(true);
   const requestId = `code-check-${Date.now()}`;
   codeCheckRequestId = requestId;
-  setStatus('Проверяю код...');
+  setStatus(codeCheckText('checkingStatus'));
   const response = await runAi({
     requestId,
     task: 'code_check',
@@ -1781,11 +1896,11 @@ document.getElementById('checkCode').addEventListener('click', async () => {
   codeCheckRequestId = null;
   button.disabled = false;
   button.textContent = codeCheckButtonText(false);
-  if (!response?.ok) return setStatus(response?.error || 'Проверка не удалась');
+  if (!response?.ok) return setStatus(response?.error || codeCheckText('failedStatus'));
   state.codeFindings = mergeCodeFindings(localFindings, parseCodeFindings(response.text));
   save();
   renderCodeCheck();
-  setStatus(state.codeFindings.length ? 'Ошибки найдены' : 'Ошибок не найдено');
+  setStatus(state.codeFindings.length ? codeCheckText('foundStatus') : codeCheckText('cleanStatus'));
 });
 
 document.getElementById('clearChat').addEventListener('click', clearCurrentChat);
